@@ -11,9 +11,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -289,7 +286,7 @@ namespace FileSerializationDemo.Classes
             {
                 logger.Info("DeserializeListType(): Directory.Exists " + propLocation);
 
-                if (listType.IsAssignableTo(typeof(FileDataBase))) // Todo: Apply this technique to bool isDerived... (above)
+                if (listType.IsAssignableTo(typeof(FileDataBase)))
                 {
                     logger.Info("DeserializeListType(): listType is derived from FileDataBase!");
                     List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();

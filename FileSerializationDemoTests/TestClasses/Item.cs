@@ -16,6 +16,7 @@ namespace FileSerializationDemoTests
 
         public Item Generalization { get; set; }
 
+        //[FileDataBaseIgnore]
         public double ItemWeight { get; set; }
 
         public List<Item> ComposedOf { get; set; }
