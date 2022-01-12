@@ -63,35 +63,11 @@ namespace FileSerializationDemo.Classes
         private string SerializePrimitives()
         {
             var settings = new JsonSerializerSettings();
-            settings.ContractResolver = new PrimitiveContractResolver();
+            settings.ContractResolver = new NewtonsoftJsonX.PrimitiveContractResolver();
             settings.DefaultValueHandling = DefaultValueHandling.Ignore;
             settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
             settings.Formatting = Formatting.Indented;
             return JsonConvert.SerializeObject(this, settings);
-        }
-
-        /// <summary>
-        /// Provides functionality to SerializePrimitives().
-        /// (Re-)defines what primitive types are.
-        /// See: https://stackoverflow.com/questions/15929848/serialize-only-simple-types-using-json-net
-        /// </summary>
-        private class PrimitiveContractResolver : DefaultContractResolver
-        {
-            protected override Newtonsoft.Json.Serialization.JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
-            {
-                var property = base.CreateProperty(member, memberSerialization);
-
-                var propertyType = property.PropertyType;
-                if (propertyType.IsPrimitive || propertyType == typeof(string))
-                {
-                    property.ShouldSerialize = instance => true;
-                }
-                else
-                {
-                    property.ShouldSerialize = instance => false;
-                }
-                return property;
-            }
         }
 
         /// <summary>
@@ -191,10 +167,10 @@ namespace FileSerializationDemo.Classes
                 // the path in which to search for existing DataBaseIds.
                 string searchPath = FilePath.Substring(0, FilePath.LastIndexOf("<id>\\"));
                 logger.Info("Serialize() searchPath = " + searchPath);
-                CreateFolderStructure(searchPath); // creates the folder with the Root name or property name.
+                WinFileSystem.CreateFolderStructure(searchPath); // creates the folder with the Root name or property name.
 
                 Serialize_SetNextID(searchPath);
-                CreateFolderStructure(FilePath); // e.g. creates the .../1/ folder.
+                WinFileSystem.CreateFolderStructure(FilePath); // e.g. creates the .../1/ folder.
 
                 // Serialize primitive/string properties here.
                 File.WriteAllText(FilePath + this.GetType().Name + ".Primitives.json", this.Serialization());
@@ -209,7 +185,7 @@ namespace FileSerializationDemo.Classes
                     logger.Info("Serialize(): Next property is " + property.Name);
                     try
                     {
-                        bool isList = IsPropertyList(property);
+                        bool isList = ReflectionX.IsPropertyList(property);
                         logger.Info("Serialize(): property.isList = " + isList);
                         if (!isList)
                             SerializeNonListProperty(property);
@@ -377,7 +353,7 @@ namespace FileSerializationDemo.Classes
                 List<PropertyInfo> properties = this.GetType().GetProperties().ToList();
                 foreach (PropertyInfo property in properties)
                 {
-                    bool isList = IsPropertyList(property);
+                    bool isList = ReflectionX.IsPropertyList(property);
                     bool isDerivedFileDB = property.PropertyType.IsAssignableTo(typeof(FileDataBase)) || property.PropertyType.IsAssignableTo(typeof(List<FileDataBase>)); // the 'IsAssignableTo' part does not work as intended and is always false for derived type lists.
                     logger.Info("Deserialize(): Property = " + property.Name + " isDerivedFileDB = " + isDerivedFileDB + " isList = " + isList);
                     try
@@ -405,51 +381,6 @@ namespace FileSerializationDemo.Classes
             {
                 logger.Error("Deserialize(List<>): Return default/Exception : " + e.Message);
                 return default;
-            }
-        }
-
-        /// <summary>
-        /// When a class is serialized to the file system, we need to make sure that the specified paths exist.
-        /// TODO: Move to WinFileSystem.cs!
-        /// </summary>
-        /// <param name="Path">If this path already exists, fine. Else, create that path.</param>
-        public void CreateFolderStructure(string Path)
-        {
-            Logger logger = LogManager.GetCurrentClassLogger();
-            string[] folderList = Path.Split('\\'); //last elem is always "". second-last is the "true" last elem.
-            bool isFile = !Path.EndsWith('\\');
-            logger.Info("CreateFolderStructure() called on Path=\"" + Path + "\"");
-            string currentDirectory = "";
-
-            for (int i = 0; i < folderList.Length; i++)
-            {
-                if (string.IsNullOrEmpty(folderList[i]))
-                    break;
-                logger.Info("CreateFolderStructure() STRING s = \"" + folderList[i] + "\"");
-                if (i == folderList.Length - 1)
-                    if (isFile)
-                    {
-                        if (!File.Exists(currentDirectory + folderList[i]))
-                        {
-                            File.Create(currentDirectory + folderList[i]);
-                            logger.Info("CreateFolderStructure() !File.Exists, Creating = \"" + currentDirectory + folderList[i] + "\"");
-                        }
-                        else
-                        {
-                            logger.Info("CreateFolderStructure() File.Exists = \"" + currentDirectory + folderList[i] + "\"");
-                        }
-
-                        break;
-                    }
-
-                if (!Directory.Exists(currentDirectory + folderList[i] + "\\"))
-                {
-                    logger.Info("CreateFolderStructure() !Directory.Exists, Creating = \"" + currentDirectory + folderList[i] + "\\" + "\"");
-                    Directory.CreateDirectory(currentDirectory + folderList[i] + "\\");
-                }
-
-                currentDirectory = string.Concat(currentDirectory, folderList[i] + "\\");
-                logger.Info("CreateFolderStructure() Set currentDirectory = \"" + currentDirectory + "\"");
             }
         }
 
@@ -505,23 +436,6 @@ namespace FileSerializationDemo.Classes
             {
                 logger.Info("GetHighestDBidInPath() Returning = " + int.MaxValue + ". Exception: " + e.Message);
                 return int.MaxValue;
-            }
-        }
-
-        /// <summary>
-        /// Finds out if a property is a List<> type or not.
-        /// </summary>
-        /// <param name="p">PropertyInfo parameter.</param>
-        /// <returns>True: Is a list. False: Is not a list.</returns>
-        private bool IsPropertyList(PropertyInfo p)
-        {
-            try
-            {
-                return p.PropertyType.GetGenericTypeDefinition() == typeof(List<>);
-            }
-            catch (Exception e)
-            {
-                return false;
             }
         }
 
