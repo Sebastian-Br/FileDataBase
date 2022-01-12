@@ -22,8 +22,9 @@ namespace FileSerializationDemo.Classes
             {
                 var property = base.CreateProperty(member, memberSerialization);
 
-                var propertyType = property.PropertyType;
-                if (propertyType.IsPrimitive || propertyType == typeof(string))
+                Type propertyType = property.PropertyType;
+                Attribute FileDBignoreAttribute = Attribute.GetCustomAttribute(propertyType, typeof(FileDataBaseIgnoreAttribute));
+                if (FileDBignoreAttribute == null && !ReflectionX.IsDerivedFileDB(propertyType))
                 {
                     property.ShouldSerialize = instance => true;
                 }

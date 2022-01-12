@@ -3,6 +3,7 @@ using FileSerializationDemo;
 using FileSerializationDemo.Classes;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
+using NLog;
 
 namespace FileSerializationDemoTests
 {
@@ -12,6 +13,7 @@ namespace FileSerializationDemoTests
         [TestMethod]
         public void TestReserialization()
         {
+            Logger logger = LogManager.GetCurrentClassLogger();
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
 
             string expectedJson = JsonConvert.SerializeObject(roomDB, Formatting.Indented);
@@ -24,7 +26,7 @@ namespace FileSerializationDemoTests
 
             string actualJson = NullDBid(JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented));
 
-            //logger.Info("\n\n +++Expected:\n" + expectedJson + "\n-------------------\n\n +++Received:\n" + actualJson);
+            logger.Info("\n\n +++Expected:\n" + expectedJson + "\n-------------------\n\n +++Received:\n" + actualJson);
             Assert.IsTrue(actualJson == expectedJson);
         }
 

@@ -19,7 +19,6 @@ namespace FileSerializationDemoTests
         public double ItemWeight { get; set; }
 
         public List<Item> ComposedOf { get; set; }
-
         public string ItemName { get; set; }
 
         public void SetWeight()
