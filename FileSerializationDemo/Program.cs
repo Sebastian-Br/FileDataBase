@@ -21,7 +21,7 @@ namespace FileSerializationDemo
         static void Main(string[] args)
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-
+            // Usage: see ReserializationTest.cs in FileSerializationDemoTests
         }
 
     }

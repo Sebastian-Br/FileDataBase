@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 namespace FileSerializationDemoTests
 {
     [TestClass]
-    public class UnitTest1
+    public class ReserializationTest
     {
         [TestMethod]
         public void TestReserialization()
@@ -16,9 +16,11 @@ namespace FileSerializationDemoTests
 
             string expectedJson = JsonConvert.SerializeObject(roomDB, Formatting.Indented);
 
-            roomDB.Serialize();
+            roomDB.Serialize(); // usage 1/2
+
             RoomDataBase deserRoomDB = new();
-            deserRoomDB = deserRoomDB.Deserialize<RoomDataBase>(1);
+
+            deserRoomDB = deserRoomDB.Deserialize<RoomDataBase>(1); // usage 2/2
 
             string actualJson = NullDBid(JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented));
 
