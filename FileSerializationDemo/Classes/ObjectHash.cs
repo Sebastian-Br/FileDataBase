@@ -42,9 +42,10 @@ namespace FileSerializationDemo.Classes
                     logger.Info("AddObject() Object was null!");
                     return;
                 }
-                logger.Info("AddObject() Trying to add object of type " + obj.GetType());
                 if (obj is ObjectHash)
                     return;
+
+                logger.Info("AddObject() Trying to add object of type " + obj.GetType());
 
                 if (currentHindex == 1)
                     H1 = Sha256.ComputeHash(combine(ObjectToByteArray(obj), H2));

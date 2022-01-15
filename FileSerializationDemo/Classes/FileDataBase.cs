@@ -127,24 +127,24 @@ namespace FileSerializationDemo.Classes
         /// <param name="property">The property.</param>
         private void SerializeNonListProperty(PropertyInfo property, SerializationType serializationType)
         {
-            /*MethodInfo m = property.PropertyType.GetMethod("Serialize");
-            m.Invoke(property.GetValue(this), null);*/
             object objProperty = property.GetValue(this, null);
+            string propertyBaseName = GetPropertyBaseName(property);
             if (objProperty != null)
             {
                 logger.Info("SerializeNonListProperty(): Got Property = " + property.Name);
                 if (objProperty is FileDataBase @base)
                 {
-                    @base.FilePath = FilePath + property.Name + "\\" + @base.FilePath;
+                    @base.FilePath = propertyBaseName + @base.FilePath;
                     @base.Serialize(serializationType);
                 }
             }
-            else
+            else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
                 logger.Info("SerializeNonListProperty(): Property is null = " + property.Name);
-                if(Directory.Exists(FilePath + property.Name + "\\"))
+                if (Directory.Exists(propertyBaseName))
                 {
-                    Directory.Delete(FilePath + property.Name + "\\", true);
+                    Directory.Delete(propertyBaseName, true);
+                    logger.Info("SerializeNonListProperty(): Deleting " + propertyBaseName);
                 }
             }
         }
@@ -154,21 +154,69 @@ namespace FileSerializationDemo.Classes
         /// See: https://stackoverflow.com/questions/937224/propertyinfo-getvalue-how-do-you-index-into-a-generic-parameter-using-reflec
         /// </summary>
         /// <param name="property"></param>
-        private void SerializeListProperty(PropertyInfo property)
+        private void SerializeListProperty(PropertyInfo property, SerializationType serializationType)
         {
-            Object collection = property.GetValue(this, null);
-            IEnumerable<object> iCollection = (IEnumerable<object>)collection;
-
-            List<int> AddedDBids = new();
-
-            foreach (object objProperty in iCollection)
+            object collection = property.GetValue(this, null);
+            string propertyBaseName = GetPropertyBaseName(property);
+            if (collection != null)
             {
-                logger.Info("SerializeListProperty(): Got objProperty.GetType() = " + objProperty.GetType());
-
-                if (objProperty is FileDataBase @base)
+                IEnumerable<object> iCollection = (IEnumerable<object>)collection;
+                List<int> AddedDBids = new();
+                foreach (object objProperty in iCollection)
                 {
-                    @base.FilePath = FilePath + property.Name + "\\" + @base.FilePath;
-                    @base.Serialize();
+                    logger.Info("SerializeListProperty() Got Property = " + property.Name);
+                    if (objProperty is FileDataBase @base)
+                    {
+                        @base.FilePath = propertyBaseName + @base.FilePath;
+                        @base.Serialize(serializationType);
+                        AddedDBids.Add(@base.DBid);
+                    }
+                }
+
+                if(serializationType == SerializationType.ADD_DISCARDUNUSED)
+                {
+                    if(iCollection.ToList().Count > 0)
+                    {
+                        List<string> directories = Directory.GetDirectories(propertyBaseName, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
+                        if (directories != null)
+                        {
+                            foreach (string directory in directories)
+                            {
+                                try
+                                {
+                                    string sdirectory = directory;
+                                    if (directory.Contains(propertyBaseName))
+                                        sdirectory = directory.Replace(propertyBaseName, "");
+                                    if (!AddedDBids.Contains(int.Parse(sdirectory)))
+                                    {
+                                        Directory.Delete(propertyBaseName + sdirectory + "\\");
+                                        logger.Info("SerializeListProperty() Deleted " + propertyBaseName + sdirectory + "\\ because that object no longer exists.");
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    logger.Error(e, "SerializeListProperty() Exception in directory loop.");
+                                }
+                            }
+                        }
+                    }
+                    else  // in case this is a new() list<>.
+                    {
+                        logger.Info("SerializeListProperty(): iCollection is empty! Deleting " + propertyBaseName);
+                        Directory.Delete(propertyBaseName, true);
+                    }
+                }
+            }
+            else
+            {
+                if (serializationType == SerializationType.ADD_DISCARDUNUSED)
+                {
+                    logger.Info("SerializeListProperty(): Property is null = " + property.Name);
+                    if (Directory.Exists(propertyBaseName))
+                    {
+                        Directory.Delete(propertyBaseName, true);
+                        logger.Info("SerializeListProperty(): Deleting " + propertyBaseName);
+                    }
                 }
             }
         }
@@ -239,37 +287,13 @@ namespace FileSerializationDemo.Classes
                         bool isList = ReflectionX.IsPropertyList(property);
                         logger.Info("Serialize(): property.isList = " + isList);
                         if (!isList)
-                            SerializeNonListProperty(property);
+                            SerializeNonListProperty(property, serializationType);
                         else
-                            SerializeListProperty(property);
+                            SerializeListProperty(property, serializationType);
                     }
                     catch (Exception e)
                     {
                         logger.Info("Serialize(): Property " + property.Name + " did not contain Serialize()! " + e.Message);
-                    }
-                }
-
-                if(serializationType == SerializationType.ADD_DISCARDUNUSED)
-                {
-                    /* here, all :FileDB properties have a DBid:
-                     * If such a nonlist-property is null, and there exists a <PropertyName>/ folder, delete it.
-                     * Same if a list is null.
-                     * 
-                     * If such a list-property is not null, first, add all member-DBids to a list.
-                     * For each folder <PropertyName>/<ID>/ for which ID is not in the list, delete that folder.
-                     */
-
-                    foreach (PropertyInfo property in properties)
-                    {
-                        logger.Info("Serialize(): ADD_DISCARDUNUSED Next property is " + property.Name);
-
-                        try
-                        {
-                            if ()
-                            {
-
-                            }
-                        }
                     }
                 }
 
@@ -516,6 +540,11 @@ namespace FileSerializationDemo.Classes
                 logger.Info("GetHighestDBidInPath() Returning = " + int.MaxValue + ". Exception: " + e.Message);
                 return int.MaxValue;
             }
+        }
+
+        private string GetPropertyBaseName(PropertyInfo property)
+        {
+            return FilePath + property.Name + "\\";
         }
 
         /// <summary>
