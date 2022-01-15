@@ -27,7 +27,23 @@ namespace FileSerializationDemoTests
             string actualJson = NullDBid(JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented));
 
             logger.Info("\n\n +++Expected:\n" + expectedJson + "\n-------------------\n\n +++Received:\n" + actualJson);
+
             Assert.IsTrue(actualJson == expectedJson);
+        }
+
+        [TestMethod]
+        public void TestDeserializationThenSerialization()
+        {
+            Logger logger = LogManager.GetCurrentClassLogger();
+            RoomDataBase deserRoomDB = new();
+            deserRoomDB = deserRoomDB.Deserialize<RoomDataBase>(1);
+
+            string actualJson = JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented);
+            logger.Info("\n\n TestDeserializationThenSerialization()+++Received:\n" + actualJson);
+
+            deserRoomDB.Serialize();
+
+            Assert.IsTrue(true);
         }
 
         public static string NullDBid(string input)

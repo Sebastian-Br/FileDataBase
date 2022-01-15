@@ -15,6 +15,8 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using NLog;
+using static FileSerializationDemo.Classes.FileDBEnums;
+
 
 namespace FileSerializationDemo.Classes
 {
@@ -35,6 +37,14 @@ namespace FileSerializationDemo.Classes
         public int DBid { get; set; }
 
         /// <summary>
+        /// To reuse the serialization at some point.
+        /// </summary>
+        [FileDataBaseIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string FirstSerializationPath { get; set; }
+
+        /// <summary>
         /// The FilePath where this object will be serialized.
         /// The id-part will be replaced be automatically replaced by the correct ID.
         /// Do NOT set this manually.
@@ -42,6 +52,11 @@ namespace FileSerializationDemo.Classes
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
         public string FilePath = "<id>\\";
+
+        [FileDataBaseIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        public ObjectHash ThisObjectHash { get; set; }
 
         /// <summary>
         /// Serializes this object.
@@ -110,18 +125,26 @@ namespace FileSerializationDemo.Classes
         /// Serializes a non-list property that derives from FileDataBase.
         /// </summary>
         /// <param name="property">The property.</param>
-        private void SerializeNonListProperty(PropertyInfo property)
+        private void SerializeNonListProperty(PropertyInfo property, SerializationType serializationType)
         {
             /*MethodInfo m = property.PropertyType.GetMethod("Serialize");
             m.Invoke(property.GetValue(this), null);*/
             object objProperty = property.GetValue(this, null);
             if (objProperty != null)
             {
-                logger.Info("SerializeNonListProperty(): Got objProperty.GetType() = " + objProperty.GetType());
+                logger.Info("SerializeNonListProperty(): Got Property = " + property.Name);
                 if (objProperty is FileDataBase @base)
                 {
                     @base.FilePath = FilePath + property.Name + "\\" + @base.FilePath;
-                    @base.Serialize();
+                    @base.Serialize(serializationType);
+                }
+            }
+            else
+            {
+                logger.Info("SerializeNonListProperty(): Property is null = " + property.Name);
+                if(Directory.Exists(FilePath + property.Name + "\\"))
+                {
+                    Directory.Delete(FilePath + property.Name + "\\", true);
                 }
             }
         }
@@ -135,6 +158,8 @@ namespace FileSerializationDemo.Classes
         {
             Object collection = property.GetValue(this, null);
             IEnumerable<object> iCollection = (IEnumerable<object>)collection;
+
+            List<int> AddedDBids = new();
 
             foreach (object objProperty in iCollection)
             {
@@ -152,7 +177,7 @@ namespace FileSerializationDemo.Classes
         /// Serializes the current class.
         /// </summary>
         /// <returns>True: Success. False otherwise.</returns>
-        public bool Serialize()
+        public bool Serialize(SerializationType serializationType, int defaultRoot = 0)
         {
             try
             {
@@ -168,9 +193,38 @@ namespace FileSerializationDemo.Classes
 
                 Serialize_SetNextID(searchPath);
                 WinFileSystem.CreateFolderStructure(FilePath); // e.g. creates the .../1/ folder.
+                bool bUpdatePrimitivesJson = true;
+                string SerializationPath = FilePath + this.GetType().Name + ".Primitives.json";
 
+                if (this.ThisObjectHash == null)
+                {
+                    logger.Info("Serialize() ObjHash is NULL!");
+                    this.ThisObjectHash = ReflectionX.GetExtensivePrimitivesHash(this);
+                    logger.Info("Serialize() Assigned ObjHash " + this.ThisObjectHash);
+                }
+                else
+                {
+                    logger.Info("Serialize() ObjHash is not null!");
+                    if (this.ThisObjectHash == ReflectionX.GetExtensivePrimitivesHash(this))
+                    {
+                        bUpdatePrimitivesJson = false;
+                    }
+                }
+
+                if (!File.Exists(SerializationPath))
+                {
+                    logger.Info("Serialize() File does not exist yet " + SerializationPath + ". Setting bUpdatePrimitivesJson to true.");
+                    bUpdatePrimitivesJson = true;
+                }
+
+                logger.Info("Serialize() bUpdatePrimitivesJson = " + bUpdatePrimitivesJson + " on Type " + this.GetType().Name);
                 // Serialize primitive/string properties here.
-                File.WriteAllText(FilePath + this.GetType().Name + ".Primitives.json", this.Serialization());
+                if(bUpdatePrimitivesJson)
+                {
+                    if(string.IsNullOrEmpty(this.FirstSerializationPath))
+                        this.FirstSerializationPath = SerializationPath;
+                    File.WriteAllText(SerializationPath, this.Serialization());
+                }
 
                 /*
                  * Nested FileDataBase Properties below.
@@ -192,6 +246,30 @@ namespace FileSerializationDemo.Classes
                     catch (Exception e)
                     {
                         logger.Info("Serialize(): Property " + property.Name + " did not contain Serialize()! " + e.Message);
+                    }
+                }
+
+                if(serializationType == SerializationType.ADD_DISCARDUNUSED)
+                {
+                    /* here, all :FileDB properties have a DBid:
+                     * If such a nonlist-property is null, and there exists a <PropertyName>/ folder, delete it.
+                     * Same if a list is null.
+                     * 
+                     * If such a list-property is not null, first, add all member-DBids to a list.
+                     * For each folder <PropertyName>/<ID>/ for which ID is not in the list, delete that folder.
+                     */
+
+                    foreach (PropertyInfo property in properties)
+                    {
+                        logger.Info("Serialize(): ADD_DISCARDUNUSED Next property is " + property.Name);
+
+                        try
+                        {
+                            if ()
+                            {
+
+                            }
+                        }
                     }
                 }
 
@@ -342,16 +420,20 @@ namespace FileSerializationDemo.Classes
                 logger.Info("Deserialize(): primitivesContent = " + primitivesContent);
                 T returnObject = System.Text.Json.JsonSerializer.Deserialize<T>(primitivesContent);
                 logger.Info("Deserialize-Serialize(): returnObject = " + JsonConvert.SerializeObject(returnObject)); // status-overview after deser. of primitives/strings.
+                ObjectHash oH = ReflectionX.GetExtensivePrimitivesHash(returnObject);
+                PropertyInfo oHprop = returnObject.GetType().GetProperty("ThisObjectHash");
+                oHprop.SetValue(returnObject, oH);
+                logger.Info("Deserialize() Computed ObjectHash = " + oH);
 
                 /*
-                 * Nested Properties below.
+                 * Nested :FileDB Properties below.
                  */
 
                 List<PropertyInfo> properties = this.GetType().GetProperties().ToList();
                 foreach (PropertyInfo property in properties)
                 {
                     bool isList = ReflectionX.IsPropertyList(property);
-                    bool isDerivedFileDB = property.PropertyType.IsAssignableTo(typeof(FileDataBase)) || property.PropertyType.IsAssignableTo(typeof(List<FileDataBase>)); // the 'IsAssignableTo' part does not work as intended and is always false for derived type lists.
+                    bool isDerivedFileDB = ReflectionX.IsDerivedFileDB(property.PropertyType); // the 'IsAssignableTo' part does not work as intended and is always false for derived type lists.
                     logger.Info("Deserialize(): Property = " + property.Name + " isDerivedFileDB = " + isDerivedFileDB + " isList = " + isList);
                     try
                     {
@@ -376,7 +458,7 @@ namespace FileSerializationDemo.Classes
             }
             catch (Exception e)
             {
-                logger.Error("Deserialize(List<>): Return default/Exception : " + e.Message);
+                logger.Error("Deserialize(): Return default/Exception : " + e.Message);
                 return default;
             }
         }

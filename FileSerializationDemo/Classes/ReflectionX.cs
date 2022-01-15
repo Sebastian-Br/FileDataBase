@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NLog;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,6 +10,8 @@ namespace FileSerializationDemo.Classes
 {
     public static class ReflectionX
     {
+        private static Logger logger = LogManager.GetCurrentClassLogger();
+
         /// <summary>
         /// Determines whether a type is either
         /// A) Derived from FileDataBase.
@@ -20,22 +23,48 @@ namespace FileSerializationDemo.Classes
         {
             try
             {
-                if(t.GetGenericTypeDefinition() == typeof(List<>))
+                logger.Info("IsDerivedFileDB() Type t = " + t.Name);
+
+                bool bIsList = false;
+                try
                 {
+                    if (t.GetGenericTypeDefinition() == typeof(List<>))
+                        bIsList = true;
+                }
+                catch { }
+
+                if(bIsList)
+                {
+                    logger.Info("IsDerivedFileDB() " + t.Name + " is a List.");
                     Type listType = t.GenericTypeArguments.ToList().First();
                     if (listType.IsAssignableTo(typeof(FileDataBase)))
+                    {
+                        logger.Info("IsDerivedFileDB() " + t.Name + " is a List<" + listType.Name + ":FileDB>Type.");
                         return true;
+                    }
+                    else
+                    {
+                        logger.Info("IsDerivedFileDB() " + t.Name + " is a foreign List<> Type.");
+                    }
                 }
                 else // nonlist
                 {
+                    logger.Info("IsDerivedFileDB() " + t.Name + " is not a List.");
                     if (t.IsAssignableTo(typeof(FileDataBase)))
+                    {
+                        logger.Info("IsDerivedFileDB() " + t.Name + " is :FileDB.");
                         return true;
+                    }
+                    else
+                    {
+                        logger.Info("IsDerivedFileDB() " + t.Name + " is not :FileDB.");
+                    }
                 }
                 return false;
             }
             catch(Exception e)
             {
-
+                logger.Error(e, "IsDerivedFileDB() exception.");
                 return false;
             }
         }
@@ -55,6 +84,48 @@ namespace FileSerializationDemo.Classes
             {
                 return false;
             }
+        }
+
+        public static ObjectHash GetExtensivePrimitivesHash(object f)
+        {
+            ObjectHash oH = new();
+            logger.Info("GetExtensivePrimitivesHash() Called on " + f.GetType().Name);
+
+            try
+            {
+                List<PropertyInfo> properties = f.GetType().GetProperties().ToList();
+
+                if (properties == null)
+                    return oH;
+
+                foreach (PropertyInfo property in properties)
+                {
+                    if(property != null)
+                    {
+                        if (!IsDerivedFileDB(property.PropertyType))
+                        {
+                            if (!IsPropertyList(property))
+                                oH.AddObject(property.GetValue(f, null));
+                            else
+                            {
+                                Object collection = property.GetValue(f, null);
+                                IEnumerable<object> iCollection = (IEnumerable<object>)collection;
+
+                                foreach (object objProperty in iCollection)
+                                {
+                                    oH.AddObject(objProperty);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                logger.Error(e, "GetExtensivePrimitivesHash() Exception.");
+            }
+            
+            return oH;
         }
     }
 }

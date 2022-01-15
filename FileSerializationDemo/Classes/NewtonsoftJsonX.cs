@@ -33,7 +33,6 @@ namespace FileSerializationDemo.Classes
                 }
                 else
                 {
-                    logger.Info("PrimitiveContractResolver: NOT Serializing " + property.PropertyName);
                     property.ShouldSerialize = instance => false;
                 }
                 return property;
