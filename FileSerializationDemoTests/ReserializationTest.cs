@@ -4,24 +4,24 @@ using FileSerializationDemo.Classes;
 using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using NLog;
+using System.Linq;
 
 namespace FileSerializationDemoTests
 {
     [TestClass]
-    public class ReserializationTest
+    public class SerializationThenDeserializationTests
     {
         [TestMethod]
-        public void TestReserialization()
+        public void TestSerializationThenDeserialization()
         {
             Logger logger = LogManager.GetCurrentClassLogger();
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
 
             string expectedJson = JsonConvert.SerializeObject(roomDB, Formatting.Indented);
 
-            roomDB.Serialize(); // usage 1/2
+            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED); // usage 1/2
 
             RoomDataBase deserRoomDB = new();
-
             deserRoomDB = deserRoomDB.Deserialize<RoomDataBase>(1); // usage 2/2
 
             string actualJson = NullDBid(JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented));
@@ -31,6 +31,7 @@ namespace FileSerializationDemoTests
             Assert.IsTrue(actualJson == expectedJson);
         }
 
+        /*
         [TestMethod]
         public void TestDeserializationThenSerialization()
         {
@@ -44,8 +45,51 @@ namespace FileSerializationDemoTests
             deserRoomDB.Serialize();
 
             Assert.IsTrue(true);
+        }*/
+
+        /// <summary>
+        /// When the object is serialized the first time, it will contain the correct the DBids.
+        /// To check whether the object is the same after deserialization, the Newtonsoft.Json serialization output
+        /// has to be changed such that DBid always appears to be 0.
+        /// </summary>
+        /// <param name="input">The input Json.</param>
+        /// <returns>Output json where all DBid = 0.</returns>
+        public static string NullDBid(string input)
+        {
+            return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");
+        }
+    }
+
+    [TestClass]
+    public class TestAddDiscardUnused
+    {
+        [TestMethod]
+        public void SerializeThenSerialize()
+        {
+            Logger logger = LogManager.GetCurrentClassLogger();
+            RoomDataBase roomDB = RoomDataBase.GetTestDB();
+
+            string expectedJson = JsonConvert.SerializeObject(roomDB, Formatting.Indented); // with comfy prison cell
+
+            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED); // serialize with cpc
+            roomDB.Rooms.Remove(roomDB.Rooms.Last()); // delete cpc
+            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED); // serialize without cpc
+
+            roomDB = roomDB.Deserialize<RoomDataBase>(1); // deserialize, then check if cpc is missing.
+            string actualJson = NullDBid(JsonConvert.SerializeObject(roomDB, Formatting.Indented));
+
+            logger.Info("\n\n +++NOT-Expected:\n" + expectedJson + "\n-------------------\n\n +++Received:\n" + actualJson);
+
+            Assert.IsTrue(actualJson != expectedJson);
         }
 
+        /// <summary>
+        /// When the object is serialized the first time, it will contain the correct the DBids.
+        /// To check whether the object is the same after deserialization, the Newtonsoft.Json serialization output
+        /// has to be changed such that DBid always appears to be 0.
+        /// </summary>
+        /// <param name="input">The input Json.</param>
+        /// <returns>Output json where all DBid = 0.</returns>
         public static string NullDBid(string input)
         {
             return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");

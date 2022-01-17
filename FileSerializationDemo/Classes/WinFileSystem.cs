@@ -10,7 +10,7 @@ namespace FileSerializationDemo.Classes
 {
     public class WinFileSystem
     {
-        private Logger logger = LogManager.GetCurrentClassLogger();
+        private static Logger logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
         /// When a class is serialized to the file system, we need to make sure that the specified paths exist.
@@ -73,6 +73,29 @@ namespace FileSerializationDemo.Classes
             catch (Exception e)
             {
                 throw new Exception("Path generation failed!");
+            }
+        }
+
+        public static bool TryDeleteDirectory(string Path)
+        {
+            try
+            {
+                if(Directory.Exists(Path))
+                {
+                    Directory.Delete(Path, true);
+                    logger.Info("TryDeleteDirectory() Deleted " + Path);
+                }
+                else
+                {
+                    logger.Info("TryDeleteDirectory() " + Path + " does not exist.");
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, "TryDeleteDirectory() Exception.");
+                return false;
             }
         }
     }

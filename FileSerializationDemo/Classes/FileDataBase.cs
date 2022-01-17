@@ -127,6 +127,7 @@ namespace FileSerializationDemo.Classes
         /// <param name="property">The property.</param>
         private void SerializeNonListProperty(PropertyInfo property, SerializationType serializationType)
         {
+            bool bSuccess = true; // return success/failure later.
             object objProperty = property.GetValue(this, null);
             string propertyBaseName = GetPropertyBaseName(property);
             if (objProperty != null)
@@ -141,11 +142,7 @@ namespace FileSerializationDemo.Classes
             else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
                 logger.Info("SerializeNonListProperty(): Property is null = " + property.Name);
-                if (Directory.Exists(propertyBaseName))
-                {
-                    Directory.Delete(propertyBaseName, true);
-                    logger.Info("SerializeNonListProperty(): Deleting " + propertyBaseName);
-                }
+                WinFileSystem.TryDeleteDirectory(propertyBaseName);
             }
         }
 
@@ -188,10 +185,7 @@ namespace FileSerializationDemo.Classes
                                     if (directory.Contains(propertyBaseName))
                                         sdirectory = directory.Replace(propertyBaseName, "");
                                     if (!AddedDBids.Contains(int.Parse(sdirectory)))
-                                    {
-                                        Directory.Delete(propertyBaseName + sdirectory + "\\");
-                                        logger.Info("SerializeListProperty() Deleted " + propertyBaseName + sdirectory + "\\ because that object no longer exists.");
-                                    }
+                                        WinFileSystem.TryDeleteDirectory(propertyBaseName + sdirectory + "\\");
                                 }
                                 catch (Exception e)
                                 {
@@ -200,24 +194,17 @@ namespace FileSerializationDemo.Classes
                             }
                         }
                     }
-                    else  // in case this is a new() list<>.
+                    else  // in case this is a new() List<>.
                     {
-                        logger.Info("SerializeListProperty(): iCollection is empty! Deleting " + propertyBaseName);
-                        Directory.Delete(propertyBaseName, true);
+                        logger.Info("SerializeListProperty(): List is empty! Trying to delete " + propertyBaseName);
+                        WinFileSystem.TryDeleteDirectory(propertyBaseName);
                     }
                 }
             }
-            else
+            else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
-                if (serializationType == SerializationType.ADD_DISCARDUNUSED)
-                {
-                    logger.Info("SerializeListProperty(): Property is null = " + property.Name);
-                    if (Directory.Exists(propertyBaseName))
-                    {
-                        Directory.Delete(propertyBaseName, true);
-                        logger.Info("SerializeListProperty(): Deleting " + propertyBaseName);
-                    }
-                }
+                logger.Info("SerializeListProperty(): List<> Property is null = " + property.Name);
+                WinFileSystem.TryDeleteDirectory(propertyBaseName);
             }
         }
 
