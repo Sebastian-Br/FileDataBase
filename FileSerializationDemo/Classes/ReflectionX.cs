@@ -86,6 +86,12 @@ namespace FileSerializationDemo.Classes
             }
         }
 
+        /// <summary>
+        /// Determines an arbitrary object's hash.
+        /// Used to check if an object has changed in value.
+        /// </summary>
+        /// <param name="f">The object.</param>
+        /// <returns>The ObjectHash that is computed from it.</returns>
         public static ObjectHash GetExtensivePrimitivesHash(object f)
         {
             ObjectHash oH = new();

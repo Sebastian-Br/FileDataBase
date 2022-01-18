@@ -14,46 +14,57 @@ namespace FileSerializationDemo.Classes
 
         /// <summary>
         /// When a class is serialized to the file system, we need to make sure that the specified paths exist.
-        /// TODO: Move to WinFileSystem.cs!
         /// </summary>
         /// <param name="Path">If this path already exists, fine. Else, create that path.</param>
-        public static void CreateFolderStructure(string Path)
+        /// <returns>True: Success/No exception. False: Exception - some operation failed, the folder structure was probably not created.</returns>
+        public static bool CreateFolderStructure(string Path)
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-            string[] folderList = Path.Split('\\'); //last elem is always "". second-last is the "true" last elem.
-            bool isFile = !Path.EndsWith('\\');
-            logger.Info("CreateFolderStructure() called on Path=\"" + Path + "\"");
-            string currentDirectory = "";
 
-            for (int i = 0; i < folderList.Length; i++)
+            try
             {
-                if (string.IsNullOrEmpty(folderList[i]))
-                    break;
-                logger.Info("CreateFolderStructure() STRING s = \"" + folderList[i] + "\"");
-                if (i == folderList.Length - 1)
-                    if (isFile)
-                    {
-                        if (!File.Exists(currentDirectory + folderList[i]))
+                string[] folderList = Path.Split('\\'); //last elem is always "". second-last is the "true" last elem.
+                bool isFile = !Path.EndsWith('\\');
+                logger.Info("CreateFolderStructure() called on Path=\"" + Path + "\"");
+                string currentDirectory = "";
+
+                for (int i = 0; i < folderList.Length; i++)
+                {
+                    if (string.IsNullOrEmpty(folderList[i]))
+                        break;
+                    logger.Info("CreateFolderStructure() STRING s = \"" + folderList[i] + "\"");
+                    if (i == folderList.Length - 1)
+                        if (isFile)
                         {
-                            File.Create(currentDirectory + folderList[i]);
-                            logger.Info("CreateFolderStructure() !File.Exists, Creating = \"" + currentDirectory + folderList[i] + "\"");
-                        }
-                        else
-                        {
-                            logger.Info("CreateFolderStructure() File.Exists = \"" + currentDirectory + folderList[i] + "\"");
+                            if (!File.Exists(currentDirectory + folderList[i]))
+                            {
+                                File.Create(currentDirectory + folderList[i]);
+                                logger.Info("CreateFolderStructure() !File.Exists, Creating = \"" + currentDirectory + folderList[i] + "\"");
+                            }
+                            else
+                            {
+                                logger.Info("CreateFolderStructure() File.Exists = \"" + currentDirectory + folderList[i] + "\"");
+                            }
+
+                            break;
                         }
 
-                        break;
+                    if (!Directory.Exists(currentDirectory + folderList[i] + "\\"))
+                    {
+                        logger.Info("CreateFolderStructure() !Directory.Exists, Creating = \"" + currentDirectory + folderList[i] + "\\" + "\"");
+                        Directory.CreateDirectory(currentDirectory + folderList[i] + "\\");
                     }
 
-                if (!Directory.Exists(currentDirectory + folderList[i] + "\\"))
-                {
-                    logger.Info("CreateFolderStructure() !Directory.Exists, Creating = \"" + currentDirectory + folderList[i] + "\\" + "\"");
-                    Directory.CreateDirectory(currentDirectory + folderList[i] + "\\");
+                    currentDirectory = string.Concat(currentDirectory, folderList[i] + "\\");
+                    logger.Info("CreateFolderStructure() Set currentDirectory = \"" + currentDirectory + "\"");
                 }
 
-                currentDirectory = string.Concat(currentDirectory, folderList[i] + "\\");
-                logger.Info("CreateFolderStructure() Set currentDirectory = \"" + currentDirectory + "\"");
+                return true;
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, "CreateFolderStructure() Exception.");
+                return false;
             }
         }
 
@@ -76,6 +87,12 @@ namespace FileSerializationDemo.Classes
             }
         }
 
+        /// <summary>
+        /// Tries to the delete the directory (and all sub-directories and files) specified @ Path.
+        /// Handles exceptions inside of this function.
+        /// </summary>
+        /// <param name="Path">The path.</param>
+        /// <returns>True: The directory was deleted (or it did not exist to begin with). False: There was an exception.</returns>
         public static bool TryDeleteDirectory(string Path)
         {
             try

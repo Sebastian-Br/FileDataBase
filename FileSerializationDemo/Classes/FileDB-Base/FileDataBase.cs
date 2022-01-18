@@ -17,14 +17,13 @@ using Newtonsoft.Json.Serialization;
 using NLog;
 using static FileSerializationDemo.Classes.FileDBEnums;
 
-
 namespace FileSerializationDemo.Classes
 {
     /// <summary>
     /// Provides basic functionality to serialize classes containing primitive, string, or :FileDataBase-
     /// types to the filesystem.
     /// </summary>
-    public abstract class FileDataBase
+    public abstract partial class FileDataBase
     {
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -38,6 +37,8 @@ namespace FileSerializationDemo.Classes
 
         /// <summary>
         /// To reuse the serialization at some point.
+        /// To achieve reusability however, one needs to keep track of the references.
+        /// If the 'original' json is deleted before it could be copied, data would be lost.
         /// </summary>
         [FileDataBaseIgnore]
         [Newtonsoft.Json.JsonIgnore]
@@ -53,6 +54,10 @@ namespace FileSerializationDemo.Classes
         [System.Text.Json.Serialization.JsonIgnore]
         public string FilePath = "<id>\\";
 
+        /// <summary>
+        /// The ObjectHash associated with this object.
+        /// Used to detect changes when serializing to prevent unneccessary writes.
+        /// </summary>
         [FileDataBaseIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
@@ -69,59 +74,6 @@ namespace FileSerializationDemo.Classes
         }
 
         /// <summary>
-        /// Serializes only primitive or string-type properties.
-        /// </summary>
-        /// <returns></returns>
-        private string SerializePrimitives()
-        {
-            var settings = new JsonSerializerSettings();
-            settings.ContractResolver = new NewtonsoftJsonX.PrimitiveContractResolver();
-            settings.DefaultValueHandling = DefaultValueHandling.Ignore;
-            settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
-            settings.Formatting = Formatting.Indented;
-            return JsonConvert.SerializeObject(this, settings);
-        }
-
-        /// <summary>
-        /// A root directory is created only for the first object on which Serialize() is called.
-        /// This object should store all the data you want to save to the database.
-        /// The name of this directory will be the type name + "Root\"
-        /// </summary>
-        private void CreateRootDirectory()
-        {
-            string prefix = this.GetType().Name + "Root\\";
-            FilePath = this.GetType().Name + "Root\\" + FilePath;
-            if (!Directory.Exists(prefix))
-            {
-                logger.Info("CreateRootDirectory(): !Directory.Exists(prefix) = " + prefix + ". Creating...");
-                Directory.CreateDirectory(prefix);
-            }
-            else
-                logger.Info("CreateRootDirectory(): Directory.Exists(prefix) = " + prefix + ".");
-        }
-
-        /// <summary>
-        /// Sets this object's DBid to the next available ID.
-        /// </summary>
-        /// <param name="searchPath">The path in which to search for assignable DBids.</param>
-        private void Serialize_SetNextID(string searchPath)
-        {
-            if (this.DBid >= 1)
-            {
-                logger.Info("Serialize_SetNextID() Update element!");
-                // keep DBid.
-            }
-            else
-            {
-                logger.Info("Serialize_SetNextID() Creating new element! Generating DBid...");
-                // generate new DBid.
-                this.DBid = GetHighestDBidInPath(searchPath) + 1;
-                logger.Info("Serialize_SetNextID() Assigned DBid = " + this.DBid);
-            }
-            FilePath = FilePath.Replace("<id>", this.DBid.ToString());
-        }
-
-        /// <summary>
         /// Serializes a non-list property that derives from FileDataBase.
         /// </summary>
         /// <param name="property">The property.</param>
@@ -129,7 +81,7 @@ namespace FileSerializationDemo.Classes
         {
             bool bSuccess = true; // return success/failure later.
             object objProperty = property.GetValue(this, null);
-            string propertyBaseName = GetPropertyBaseName(property);
+            string propertyBaseName = GetPropertyBaseDirectory(property);
             if (objProperty != null)
             {
                 logger.Info("SerializeNonListProperty(): Got Property = " + property.Name);
@@ -153,8 +105,9 @@ namespace FileSerializationDemo.Classes
         /// <param name="property"></param>
         private void SerializeListProperty(PropertyInfo property, SerializationType serializationType)
         {
+            bool bSuccess = true; // return success/failure later.
             object collection = property.GetValue(this, null);
-            string propertyBaseName = GetPropertyBaseName(property);
+            string propertyBaseName = GetPropertyBaseDirectory(property);
             if (collection != null)
             {
                 IEnumerable<object> iCollection = (IEnumerable<object>)collection;
@@ -218,7 +171,7 @@ namespace FileSerializationDemo.Classes
             {
                 logger.Info("Serialize(): Called from " + this.GetType());
                 FilePath = WinFileSystem.GetWinReadablePath(FilePath);
-                if (FilePath == "<id>\\") // if this is the root of the call, create new Root folder.
+                if (FilePath == "<id>\\") // if this is the root of the call, this is unchanged;-> create new Root folder.
                     CreateRootDirectory();
 
                 // the path in which to search for existing DataBaseIds.
@@ -297,63 +250,39 @@ namespace FileSerializationDemo.Classes
         }
 
         /// <summary>
-        /// Checks if the root of the database is inproper, in which case
-        /// deserialization can not succeed.
-        /// </summary>
-        /// <returns>True: This is a root and it is inproper. False otherwise.</returns>
-        private bool Deserialize_CheckIsInproperRoot()
-        {
-            if (FilePath == "<id>\\")
-            {
-                string prefix = this.GetType().Name + "Root\\";
-                FilePath = this.GetType().Name + "Root\\" + FilePath;
-                if (!Directory.Exists(prefix)) // Can not find deserialization root.
-                {
-                    logger.Error("Deserialize_CheckIsInproperRoot(): !Directory.Exists(prefix) = " + prefix + ". Exiting...");
-                    return true;
-                }
-                else
-                    logger.Info("Deserialize_CheckIsInproperRoot(): Directory.Exists(prefix) = " + prefix + ". This is a proper root.");
-                return false;
-            }
-
-            return false;
-        }
-
-        /// <summary>
         /// Deserializes a nonlist type that derives from FileDataBase.
         /// Sets the pertinent property of the current object to the deserialized child-object.
         /// </summary>
         /// <param name="property">The nonlist property.</param>
         /// <param name="returnObject">The current object that houses this property.</param>
-        private void DeserializeNonListType(PropertyInfo property, object returnObject)
+        private void DeserializeNonListProperty(PropertyInfo property, object returnObject)
         {
             Type nonlistType = property.PropertyType;
             object objProperty = Activator.CreateInstance(nonlistType); ;
-            string propLocation = FilePath + property.Name + "\\";
-            logger.Info("DeserializeNonListType: Type is " + nonlistType);
+            string propLocation = GetPropertyBaseDirectory(property);
+            logger.Info("DeserializeNonListProperty: Type is " + nonlistType);
 
             if (Directory.Exists(propLocation))
             {
-                logger.Info("DeserializeNonListType: Directory.Exists " + propLocation);
+                logger.Info("DeserializeNonListProperty: Directory.Exists " + propLocation);
                 if (objProperty is FileDataBase @base)
                 {
-                    logger.Info("DeserializeNonListType: Is derived from FileDataBase!");
+                    logger.Info("DeserializeNonListProperty: Is derived from FileDataBase!");
                     @base.FilePath = propLocation + @base.FilePath;
                     List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
                     string sdirectory = directories.First();
                     if (sdirectory.Contains(propLocation))
                         sdirectory = sdirectory.Replace(propLocation, ""); // now contains that Property's DBid
 
-                    logger.Info("DeserializeNonListType: In Directory " + sdirectory);
+                    logger.Info("DeserializeNonListProperty: In Directory " + sdirectory);
 
                     MethodInfo mi = nonlistType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { nonlistType });
                     List<object> param = new();
                     param.Add(int.Parse(sdirectory));
-                    object setMe = mi.Invoke(objProperty, param.ToArray());
-                    property.SetValue(returnObject, setMe); // for this property, sets the property value.
-                    logger.Info("DeserializeNonListType: setMe-Ser: " + JsonConvert.SerializeObject(setMe, Formatting.Indented));
-                    logger.Info("DeserializeNonListType: retObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent obj and return-obj.
+                    object nestedProperty = mi.Invoke(objProperty, param.ToArray()); // calls Deserialize() with the DBid parameter int.Parse(sdirectory)
+                    property.SetValue(returnObject, nestedProperty); // for this property, sets the property value.
+                    logger.Info("DeserializeNonListProperty: nestedProperty-Ser: " + JsonConvert.SerializeObject(nestedProperty, Formatting.Indented));
+                    logger.Info("DeserializeNonListProperty: retObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent obj and return-obj.
                 }
             }
         }
@@ -364,41 +293,41 @@ namespace FileSerializationDemo.Classes
         /// </summary>
         /// <param name="property">The list property.</param>
         /// <param name="returnObject">The current object that has this list property.</param>
-        private void DeserializeListType(PropertyInfo property, object returnObject)
+        private void DeserializeListProperty(PropertyInfo property, object returnObject)
         {
             List<Type> types = property.PropertyType.GenericTypeArguments.ToList();
             Type listType = types.First();
-            logger.Info("DeserializeListType(): Type is " + listType.Name);
-            string propLocation = FilePath + property.Name + "\\";
+            logger.Info("DeserializeListProperty() Type is " + listType.Name);
+            string propLocation = GetPropertyBaseDirectory(property);
 
             if (Directory.Exists(propLocation))
             {
-                logger.Info("DeserializeListType(): Directory.Exists " + propLocation);
+                logger.Info("DeserializeListProperty() Directory.Exists " + propLocation);
 
                 if (listType.IsAssignableTo(typeof(FileDataBase)))
                 {
-                    logger.Info("DeserializeListType(): listType is derived from FileDataBase!");
+                    logger.Info("DeserializeListProperty() listType is derived from FileDataBase!");
                     List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
                     foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
                     {
                         string sdirectory = directory;
                         if (directory.Contains(propLocation)) //why the F* is this always true??!?!?!? WHYYYYYYYYYYY
                             sdirectory = directory.Replace(propLocation, "");
-                        logger.Info("DeserializeListType(): In Directory " + sdirectory);
+                        logger.Info("DeserializeListProperty() In Directory " + sdirectory);
                         var instance = Activator.CreateInstance(listType);
                         if (instance is FileDataBase @base) // HUIuiuiuiui...
                         {
-                            logger.Info("DeserializeListType(): instance is derived from FileDataBase!");
+                            logger.Info("DeserializeListProperty() instance is derived from FileDataBase!");
                             @base.FilePath = propLocation + @base.FilePath;
                             MethodInfo deserializeMethodInfo = listType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { listType });
                             List<object> param = new();
                             param.Add(int.Parse(sdirectory));
-                            object AddMeToList = deserializeMethodInfo.Invoke(instance, param.ToArray());
-                            object thisProp = property.GetValue(returnObject);
-                            MethodInfo propMi = property.PropertyType.GetMethod("Add");
-                            propMi.Invoke(thisProp, new object[] { AddMeToList });
-                            logger.Info("DeserializeListType(): AddMeToList-Ser: " + JsonConvert.SerializeObject(AddMeToList, Formatting.Indented));
-                            logger.Info("DeserializeListType(): returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
+                            object listElement = deserializeMethodInfo.Invoke(instance, param.ToArray()); // calls Deserialize() on the list element.
+                            object list = property.GetValue(returnObject);
+                            MethodInfo listAdd = property.PropertyType.GetMethod("Add");
+                            listAdd.Invoke(list, new object[] { listElement }); // adds the list element to the list.
+                            logger.Info("DeserializeListProperty() AddMeToList-Ser: " + JsonConvert.SerializeObject(listElement, Formatting.Indented));
+                            logger.Info("DeserializeListProperty() returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
                         }
                     }
                 }
@@ -418,13 +347,13 @@ namespace FileSerializationDemo.Classes
                 logger.Info("Deserialize(): Called from " + typeof(T).Name);
                 FilePath = WinFileSystem.GetWinReadablePath(FilePath);
 
-                if (Deserialize_CheckIsInproperRoot())
+                if (Deserialize_CheckIsImproperRoot())
                     return default;
 
                 FilePath = FilePath.Replace("<id>", dbId.ToString());
                 logger.Info("Deserialize(): FilePath = " + FilePath);
 
-                // Deserialize primitives/strings here:
+                // Deserialize non-FileDB-deriving types here:
 
                 string primitivesLocation = FilePath + typeof(T).Name + ".Primitives.json";
                 string primitivesContent = File.ReadAllText(primitivesLocation);
@@ -444,18 +373,14 @@ namespace FileSerializationDemo.Classes
                 foreach (PropertyInfo property in properties)
                 {
                     bool isList = ReflectionX.IsPropertyList(property);
-                    bool isDerivedFileDB = ReflectionX.IsDerivedFileDB(property.PropertyType); // the 'IsAssignableTo' part does not work as intended and is always false for derived type lists.
+                    bool isDerivedFileDB = ReflectionX.IsDerivedFileDB(property.PropertyType);
                     logger.Info("Deserialize(): Property = " + property.Name + " isDerivedFileDB = " + isDerivedFileDB + " isList = " + isList);
                     try
                     {
                         if (!isList && isDerivedFileDB)
-                        {
-                            DeserializeNonListType(property, returnObject);
-                        }
+                            DeserializeNonListProperty(property, returnObject);
                         else if (isList)
-                        {
-                            DeserializeListType(property, returnObject);
-                        }
+                            DeserializeListProperty(property, returnObject);
                     }
                     catch (Exception e)
                     {
@@ -472,74 +397,6 @@ namespace FileSerializationDemo.Classes
                 logger.Error("Deserialize(): Return default/Exception : " + e.Message);
                 return default;
             }
-        }
-
-        /// <summary>
-        /// Gets the highest ID in Path example\path\id, where ID is int.
-        /// </summary>
-        /// <param name="Path">The path to serialized object(s).</param>
-        /// <returns>The highest database-ID among those objects.</returns>
-        private int GetHighestDBidInPath(string Path)
-        {
-            Logger logger = LogManager.GetCurrentClassLogger();
-            try
-            {
-                logger.Info("GetHighestDBidInPath() called on Path = " + Path);
-                int id = 0;
-                string searchPath;
-                if (!Path.EndsWith('\\'))
-                    searchPath = Path.Substring(0, Path.LastIndexOf('\\') + 1);
-                else
-                    searchPath = Path;
-
-                logger.Info("GetHighestDBidInPath() searchPath = " + searchPath);
-                List<string> directoryNames = Directory.GetDirectories(searchPath, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
-
-                if (directoryNames != null)
-                {
-                    foreach (string directory in directoryNames)
-                    {
-                        int tmp;
-                        string tmpStr = directory;
-                        if (tmpStr.Contains(searchPath)) // how to search such as to exclusively get the sub-dir names??
-                            tmpStr = tmpStr.Replace(searchPath, "");
-                        // now tmpStr should only hold int.Parse-able strings.
-                        try
-                        {
-                            tmp = int.Parse(tmpStr);
-                        }
-                        catch (Exception e)
-                        {
-                            logger.Info("GetHighestDBidInPath() directory = " + directory + " not Int type!");
-                            tmp = -1;
-                        }
-
-                        if (tmp > id)
-                            id = tmp;
-                    }
-                }
-
-                logger.Info("GetHighestDBidInPath() Returning = " + id);
-                return id;
-            }
-            catch (Exception e)
-            {
-                logger.Info("GetHighestDBidInPath() Returning = " + int.MaxValue + ". Exception: " + e.Message);
-                return int.MaxValue;
-            }
-        }
-
-        private string GetPropertyBaseName(PropertyInfo property)
-        {
-            return FilePath + property.Name + "\\";
-        }
-
-        /// <summary>
-        /// Since FilePath is altered during Serialization, the same object would otherwise not be successfully serializable again.
-        /// </summary>
-        private void ResetFilePath()
-        {
-            this.FilePath = "<id>\\";
         }
     }
 }

@@ -11,6 +11,11 @@ namespace FileSerializationDemoTests
     [TestClass]
     public class SerializationThenDeserializationTests
     {
+        /// <summary>
+        /// Serializes the Test-DB.
+        /// Asserts true if the deserialized DB matches the Test-DB.
+        /// Expected Result: True.
+        /// </summary>
         [TestMethod]
         public void TestSerializationThenDeserialization()
         {
@@ -63,6 +68,12 @@ namespace FileSerializationDemoTests
     [TestClass]
     public class TestAddDiscardUnused
     {
+        /// <summary>
+        /// Serializes the Test-Database, then removes a Room-object and serializes again.
+        /// If, upon deserialization, it is found that the database changed (the room was deleted in the database),
+        /// asserts true.
+        /// Expected Result: True.
+        /// </summary>
         [TestMethod]
         public void SerializeThenSerialize()
         {
