@@ -2,7 +2,7 @@
 Provides easy to use functionality for serializing/deserializing objects from/to the filesystem. </br>
 The classes which provide this functionality are located in FileSerializationDemo/Classes/.</br>
 ## Known Issues
-<h3>HIGH Priority:heavy_check_mark: :heavy_check_mark: ⚠️</h3>
+<h3>HIGH Priority :heavy_check_mark: :heavy_check_mark: ⚠️</h3>
 1. :heavy_check_mark: --FIXED--Nonprimitive, nonstring or non-FileDataBase-deriving types are not serialized. The Database will not remember them.</br>
   Fix Ideas: Serialize all non-FileDataBase-deriving Types into (TypeName).primitives.json and let the developer decide which properties are ineligible for Serialization via an attribute :heavy_check_mark:</br>
 2. :heavy_check_mark: --Decently fixed-- The FileDataBase class can be difficult to understand.</br>
