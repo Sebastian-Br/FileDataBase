@@ -86,5 +86,43 @@ namespace FileSerializationDemoTests
 
             return roomDB;
         }
+
+        public static void EditLightBulbItem(RoomDataBase roomDataBase)
+        {
+            foreach(Room room in roomDataBase.Rooms)
+            {
+                if(room.RoomName == "Living Room")
+                {
+                    foreach(Item item in room.Items)
+                    {
+                        if(item.ItemName == "50W Lightbulb")
+                        {
+                            item.ComposedOf = null;
+                            item.ItemName = "20W Energy Saving Lightbulb";
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        public static bool HasOldLightBulb(RoomDataBase roomDataBase)
+        {
+            foreach (Room room in roomDataBase.Rooms)
+            {
+                if (room.RoomName == "Living Room")
+                {
+                    foreach (Item item in room.Items)
+                    {
+                        if (item.ItemName == "50W Lightbulb")
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 }

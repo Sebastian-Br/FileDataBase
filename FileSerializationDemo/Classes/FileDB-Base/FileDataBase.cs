@@ -231,13 +231,20 @@ namespace FileSerializationDemo.Classes
 
                 WinFileSystem.CreateFolderStructure(FilePath); // e.g. creates the .../1/ folder.
                 bool bUpdatePrimitivesJson = true;
-
                 string SerializationPath = FilePath + this.GetType().Name + ".Primitives.json";
                 string ReferenceSerializationPath = GetObjectLinqsLocation();
 
                 if(bIsReference)
                 {
-                    File.WriteAllText(ReferenceSerializationPath, JsonConvert.SerializeObject(this.objectLinqs, Formatting.Indented));
+                    try
+                    {
+                        File.WriteAllText(ReferenceSerializationPath, JsonConvert.SerializeObject(this.objectLinqs, Formatting.Indented));
+                        return true;
+                    }
+                    catch (Exception e)
+                    {
+                        return false;
+                    }
                 }
                 else
                 {

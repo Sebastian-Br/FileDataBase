@@ -128,4 +128,41 @@ namespace FileSerializationDemoTests
             return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");
         }
     }
+
+    [TestClass]
+    public class TestObjectLinQ
+    {
+        /// <summary>
+        /// Serializes the Test-Database, then removes a Room-object and serializes again.
+        /// If, upon deserialization, it is found that the database changed (the room was deleted in the database),
+        /// asserts true.
+        /// Expected Result: True.
+        /// </summary>
+        [TestMethod]
+        public void DeserializeThenTest()
+        {
+            Logger logger = LogManager.GetCurrentClassLogger();
+
+            RoomDataBase roomDB = new();
+            roomDB = roomDB.Deserialize<RoomDataBase>(1); // deserialize, then call EditLightBulb() and check if the Item changed in both room 1 and 2.
+            RoomDataBase.EditLightBulbItem(roomDB);
+            string resultJson = NullDBid(JsonConvert.SerializeObject(roomDB, Formatting.Indented));
+
+            logger.Info("\n\n +++DeserializeThenTest()-Result-Json:\n" + resultJson);
+
+            Assert.IsTrue(!RoomDataBase.HasOldLightBulb(roomDB));
+        }
+
+        /// <summary>
+        /// When the object is serialized the first time, it will contain the correct the DBids.
+        /// To check whether the object is the same after deserialization, the Newtonsoft.Json serialization output
+        /// has to be changed such that DBid always appears to be 0.
+        /// </summary>
+        /// <param name="input">The input Json.</param>
+        /// <returns>Output json where all DBid = 0.</returns>
+        public static string NullDBid(string input)
+        {
+            return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");
+        }
+    }
 }
