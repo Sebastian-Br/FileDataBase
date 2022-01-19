@@ -23,8 +23,6 @@ namespace FileSerializationDemo.Classes
         {
             try
             {
-                logger.Info("IsDerivedFileDB() Type t = " + t.Name);
-
                 bool bIsList = false;
                 try
                 {
@@ -35,7 +33,7 @@ namespace FileSerializationDemo.Classes
 
                 if(bIsList)
                 {
-                    logger.Info("IsDerivedFileDB() " + t.Name + " is a List.");
+                    //logger.Info("IsDerivedFileDB() " + t.Name + " is a List.");
                     Type listType = t.GenericTypeArguments.ToList().First();
                     if (listType.IsAssignableTo(typeof(FileDataBase)))
                     {
@@ -49,7 +47,7 @@ namespace FileSerializationDemo.Classes
                 }
                 else // nonlist
                 {
-                    logger.Info("IsDerivedFileDB() " + t.Name + " is not a List.");
+                    //logger.Info("IsDerivedFileDB() " + t.Name + " is not a List.");
                     if (t.IsAssignableTo(typeof(FileDataBase)))
                     {
                         logger.Info("IsDerivedFileDB() " + t.Name + " is :FileDB.");

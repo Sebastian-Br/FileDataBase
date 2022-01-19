@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using NLog;
 using static FileSerializationDemo.Classes.FileDBEnums;
+using static FileSerializationDemo.Classes.ObjectHash;
 
 namespace FileSerializationDemo.Classes
 {
@@ -36,14 +37,23 @@ namespace FileSerializationDemo.Classes
         public int DBid { get; set; }
 
         /// <summary>
-        /// To reuse the serialization at some point.
-        /// To achieve reusability however, one needs to keep track of the references.
-        /// If the 'original' json is deleted before it could be copied, data would be lost.
+        /// Used to store this object's 
         /// </summary>
         [FileDataBaseIgnore]
+        [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public string FirstSerializationPath { get; set; }
+        public List<ObjectLinq> objectLinqs { get; set; }
+
+        /// <summary>
+        /// True if this object has already been serialized somewhere else.
+        /// </summary>
+        public bool AlreadySerialized { get; set; }
+
+        /// <summary>
+        /// The root from which to talk 
+        /// </summary>
+        private object Root { get; set; }
 
         /// <summary>
         /// The FilePath where this object will be serialized.
@@ -88,6 +98,11 @@ namespace FileSerializationDemo.Classes
                 if (objProperty is FileDataBase @base)
                 {
                     @base.FilePath = propertyBaseName + @base.FilePath;
+                    if(!@base.AlreadySerialized)
+                    {
+                        @base.objectLinqs = ObjectLinq.CopyLinqs(this.objectLinqs);
+                        @base.objectLinqs.Add(new ObjectLinq { PropertyName = property.Name }); // Child needs to set its own dbid.
+                    }
                     @base.Serialize(serializationType);
                 }
             }
@@ -118,6 +133,11 @@ namespace FileSerializationDemo.Classes
                     if (objProperty is FileDataBase @base)
                     {
                         @base.FilePath = propertyBaseName + @base.FilePath;
+                        if (!@base.AlreadySerialized)
+                        {
+                            @base.objectLinqs = ObjectLinq.CopyLinqs(this.objectLinqs);
+                            @base.objectLinqs.Add(new ObjectLinq { PropertyName = property.Name }); // Child needs to set its own dbid.
+                        }
                         @base.Serialize(serializationType);
                         AddedDBids.Add(@base.DBid);
                     }
@@ -170,6 +190,11 @@ namespace FileSerializationDemo.Classes
             try
             {
                 logger.Info("Serialize(): Called from " + this.GetType());
+                bool bIsReference = false;
+                if (AlreadySerialized)
+                    bIsReference = true;
+
+                AlreadySerialized = true;
                 FilePath = WinFileSystem.GetWinReadablePath(FilePath);
                 if (FilePath == "<id>\\") // if this is the root of the call, this is unchanged;-> create new Root folder.
                     CreateRootDirectory();
@@ -180,38 +205,54 @@ namespace FileSerializationDemo.Classes
                 WinFileSystem.CreateFolderStructure(searchPath); // creates the folder with the Root name or property name.
 
                 Serialize_SetNextID(searchPath);
+                if (!bIsReference)
+                {
+                    try
+                    {
+                        this.objectLinqs.Last().DBid = DBid;
+                    }
+                    catch { } // for the root element, objectLinqs are null.
+                }
+
                 WinFileSystem.CreateFolderStructure(FilePath); // e.g. creates the .../1/ folder.
                 bool bUpdatePrimitivesJson = true;
-                string SerializationPath = FilePath + this.GetType().Name + ".Primitives.json";
 
-                if (this.ThisObjectHash == null)
+                string SerializationPath = FilePath + this.GetType().Name + ".Primitives.json";
+                string ReferenceSerializationPath = FilePath + "objlinqs.json";
+
+                if(bIsReference)
                 {
-                    logger.Info("Serialize() ObjHash is NULL!");
-                    this.ThisObjectHash = ReflectionX.GetExtensivePrimitivesHash(this);
-                    logger.Info("Serialize() Assigned ObjHash " + this.ThisObjectHash);
+                    File.WriteAllText(ReferenceSerializationPath, JsonConvert.SerializeObject(this.objectLinqs, Formatting.Indented));
                 }
                 else
                 {
-                    logger.Info("Serialize() ObjHash is not null!");
-                    if (this.ThisObjectHash == ReflectionX.GetExtensivePrimitivesHash(this))
+                    if (this.ThisObjectHash == null)
                     {
-                        bUpdatePrimitivesJson = false;
+                        logger.Info("Serialize() ObjHash is null!");
+                        this.ThisObjectHash = ReflectionX.GetExtensivePrimitivesHash(this);
+                        logger.Info("Serialize() Assigned ObjHash " + this.ThisObjectHash);
                     }
-                }
+                    else
+                    {
+                        logger.Info("Serialize() ObjHash is not null!");
+                        if (this.ThisObjectHash == ReflectionX.GetExtensivePrimitivesHash(this))
+                        {
+                            bUpdatePrimitivesJson = false;
+                        }
+                    }
 
-                if (!File.Exists(SerializationPath))
-                {
-                    logger.Info("Serialize() File does not exist yet " + SerializationPath + ". Setting bUpdatePrimitivesJson to true.");
-                    bUpdatePrimitivesJson = true;
-                }
+                    if (!File.Exists(SerializationPath))
+                    {
+                        logger.Info("Serialize() File does not exist yet " + SerializationPath + ". Setting bUpdatePrimitivesJson to true.");
+                        bUpdatePrimitivesJson = true;
+                    }
 
-                logger.Info("Serialize() bUpdatePrimitivesJson = " + bUpdatePrimitivesJson + " on Type " + this.GetType().Name);
-                // Serialize primitive/string properties here.
-                if(bUpdatePrimitivesJson)
-                {
-                    if(string.IsNullOrEmpty(this.FirstSerializationPath))
-                        this.FirstSerializationPath = SerializationPath;
-                    File.WriteAllText(SerializationPath, this.Serialization());
+                    logger.Info("Serialize() bUpdatePrimitivesJson = " + bUpdatePrimitivesJson + " on Type " + this.GetType().Name);
+                    // Serialize primitive/string properties here.
+                    if (bUpdatePrimitivesJson)
+                    {
+                        File.WriteAllText(SerializationPath, this.Serialization());
+                    }
                 }
 
                 /*
@@ -224,12 +265,15 @@ namespace FileSerializationDemo.Classes
                     logger.Info("Serialize(): Next property is " + property.Name);
                     try
                     {
-                        bool isList = ReflectionX.IsPropertyList(property);
-                        logger.Info("Serialize(): property.isList = " + isList);
-                        if (!isList)
-                            SerializeNonListProperty(property, serializationType);
-                        else
-                            SerializeListProperty(property, serializationType);
+                        if(ReflectionX.IsDerivedFileDB(property.PropertyType))
+                        {
+                            bool isList = ReflectionX.IsPropertyList(property);
+                            logger.Info("Serialize(): property.isList = " + isList);
+                            if (!isList)
+                                SerializeNonListProperty(property, serializationType);
+                            else
+                                SerializeListProperty(property, serializationType);
+                        }
                     }
                     catch (Exception e)
                     {

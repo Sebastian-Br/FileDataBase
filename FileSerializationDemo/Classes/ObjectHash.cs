@@ -45,6 +45,14 @@ namespace FileSerializationDemo.Classes
                 if (obj is ObjectHash)
                     return;
 
+                Attribute ObjHashIgnoreAttribute = obj.GetType().GetCustomAttribute(typeof(ObjectHashIgnoreAttribute));
+
+                if(ObjHashIgnoreAttribute != null)
+                {
+                    logger.Info("AddObject() This object had the ObjectHashIgnore attribute!");
+                    return;
+                }
+
                 logger.Info("AddObject() Trying to add object of type " + obj.GetType());
 
                 if (currentHindex == 1)
@@ -118,6 +126,11 @@ namespace FileSerializationDemo.Classes
             Array.Copy(a, combined, b.Length);
             Array.Copy(b, 0, combined, a.Length, b.Length);
             return combined;
+        }
+
+        [System.AttributeUsage(AttributeTargets.Property)]
+        public class ObjectHashIgnoreAttribute : System.Attribute
+        {
         }
     }
 }
