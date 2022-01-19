@@ -45,9 +45,10 @@ namespace FileSerializationDemo.Classes
                     logger.Error("Deserialize_CheckIsImproperRoot(): !Directory.Exists(prefix) = " + prefix + ". Exiting...");
                     return true;
                 }
-                else
+                else {
                     logger.Info("Deserialize_CheckIsImproperRoot(): Directory.Exists(prefix) = " + prefix + ". This is a proper root.");
-                return false;
+                    this.IsRoot = true;
+                }
             }
 
             return false;
@@ -158,6 +159,11 @@ namespace FileSerializationDemo.Classes
         private void ResetFilePath()
         {
             this.FilePath = "<id>\\";
+        }
+
+        private string GetObjectLinqsLocation()
+        {
+            return FilePath + this.GetType().Name + ".ObjLinqs.json";
         }
     }
 }

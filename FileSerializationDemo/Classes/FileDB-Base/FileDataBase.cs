@@ -48,12 +48,26 @@ namespace FileSerializationDemo.Classes
         /// <summary>
         /// True if this object has already been serialized somewhere else.
         /// </summary>
+        [FileDataBaseIgnore]
+        [ObjectHashIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
         public bool AlreadySerialized { get; set; }
 
         /// <summary>
         /// The root from which to talk 
         /// </summary>
-        private object Root { get; set; }
+        [FileDataBaseIgnore]
+        [ObjectHashIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        public object Root { get; set; }
+
+        [FileDataBaseIgnore]
+        [ObjectHashIgnore]
+        [Newtonsoft.Json.JsonIgnore]
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool IsRoot { get; set; }
 
         /// <summary>
         /// The FilePath where this object will be serialized.
@@ -69,6 +83,7 @@ namespace FileSerializationDemo.Classes
         /// Used to detect changes when serializing to prevent unneccessary writes.
         /// </summary>
         [FileDataBaseIgnore]
+        [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
         public ObjectHash ThisObjectHash { get; set; }
@@ -218,7 +233,7 @@ namespace FileSerializationDemo.Classes
                 bool bUpdatePrimitivesJson = true;
 
                 string SerializationPath = FilePath + this.GetType().Name + ".Primitives.json";
-                string ReferenceSerializationPath = FilePath + "objlinqs.json";
+                string ReferenceSerializationPath = GetObjectLinqsLocation();
 
                 if(bIsReference)
                 {
@@ -228,13 +243,11 @@ namespace FileSerializationDemo.Classes
                 {
                     if (this.ThisObjectHash == null)
                     {
-                        logger.Info("Serialize() ObjHash is null!");
                         this.ThisObjectHash = ReflectionX.GetExtensivePrimitivesHash(this);
                         logger.Info("Serialize() Assigned ObjHash " + this.ThisObjectHash);
                     }
                     else
                     {
-                        logger.Info("Serialize() ObjHash is not null!");
                         if (this.ThisObjectHash == ReflectionX.GetExtensivePrimitivesHash(this))
                         {
                             bUpdatePrimitivesJson = false;
@@ -313,6 +326,10 @@ namespace FileSerializationDemo.Classes
                 {
                     logger.Info("DeserializeNonListProperty: Is derived from FileDataBase!");
                     @base.FilePath = propLocation + @base.FilePath;
+                    if (this.Root == null)
+                        @base.Root = this;
+                    else
+                        @base.Root = Root;
                     List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
                     string sdirectory = directories.First();
                     if (sdirectory.Contains(propLocation))
@@ -325,7 +342,6 @@ namespace FileSerializationDemo.Classes
                     param.Add(int.Parse(sdirectory));
                     object nestedProperty = mi.Invoke(objProperty, param.ToArray()); // calls Deserialize() with the DBid parameter int.Parse(sdirectory)
                     property.SetValue(returnObject, nestedProperty); // for this property, sets the property value.
-                    logger.Info("DeserializeNonListProperty: nestedProperty-Ser: " + JsonConvert.SerializeObject(nestedProperty, Formatting.Indented));
                     logger.Info("DeserializeNonListProperty: retObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent obj and return-obj.
                 }
             }
@@ -341,40 +357,40 @@ namespace FileSerializationDemo.Classes
         {
             List<Type> types = property.PropertyType.GenericTypeArguments.ToList();
             Type listType = types.First();
-            logger.Info("DeserializeListProperty() Type is " + listType.Name);
             string propLocation = GetPropertyBaseDirectory(property);
 
             if (Directory.Exists(propLocation))
             {
-                logger.Info("DeserializeListProperty() Directory.Exists " + propLocation);
-
-                if (listType.IsAssignableTo(typeof(FileDataBase)))
+                
+                List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
+                foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
                 {
-                    logger.Info("DeserializeListProperty() listType is derived from FileDataBase!");
-                    List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
-                    foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
+                    string sdirectory = directory;
+                    if (directory.Contains(propLocation)) //why the F* is this always true??!?!?!? WHYYYYYYYYYYY
+                        sdirectory = directory.Replace(propLocation, "");
+                    logger.Info("DeserializeListProperty() In Directory " + sdirectory);
+                    var instance = Activator.CreateInstance(listType);
+                    if (instance is FileDataBase @base) // HUIuiuiuiui...
                     {
-                        string sdirectory = directory;
-                        if (directory.Contains(propLocation)) //why the F* is this always true??!?!?!? WHYYYYYYYYYYY
-                            sdirectory = directory.Replace(propLocation, "");
-                        logger.Info("DeserializeListProperty() In Directory " + sdirectory);
-                        var instance = Activator.CreateInstance(listType);
-                        if (instance is FileDataBase @base) // HUIuiuiuiui...
-                        {
-                            logger.Info("DeserializeListProperty() instance is derived from FileDataBase!");
-                            @base.FilePath = propLocation + @base.FilePath;
-                            MethodInfo deserializeMethodInfo = listType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { listType });
-                            List<object> param = new();
-                            param.Add(int.Parse(sdirectory));
-                            object listElement = deserializeMethodInfo.Invoke(instance, param.ToArray()); // calls Deserialize() on the list element.
-                            object list = property.GetValue(returnObject);
-                            MethodInfo listAdd = property.PropertyType.GetMethod("Add");
-                            listAdd.Invoke(list, new object[] { listElement }); // adds the list element to the list.
-                            logger.Info("DeserializeListProperty() AddMeToList-Ser: " + JsonConvert.SerializeObject(listElement, Formatting.Indented));
-                            logger.Info("DeserializeListProperty() returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
-                        }
+                        @base.FilePath = propLocation + @base.FilePath;
+                        if (this.Root == null)
+                            @base.Root = this;
+                        else
+                            @base.Root = Root;
+                        MethodInfo deserializeMethodInfo = listType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { listType });
+                        List<object> param = new();
+                        param.Add(int.Parse(sdirectory));
+                        object listElement = deserializeMethodInfo.Invoke(instance, param.ToArray()); // calls Deserialize() on the list element.
+                        object list = property.GetValue(returnObject);
+                        MethodInfo listAdd = property.PropertyType.GetMethod("Add");
+                        listAdd.Invoke(list, new object[] { listElement }); // adds the list element to the list.
+                        logger.Info("DeserializeListProperty() returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
                     }
                 }
+            }
+            else
+            {
+                logger.Error("DeserializeListProperty() Directory does not exist! " + propLocation);
             }
         }
 
@@ -390,7 +406,6 @@ namespace FileSerializationDemo.Classes
             {
                 logger.Info("Deserialize(): Called from " + typeof(T).Name);
                 FilePath = WinFileSystem.GetWinReadablePath(FilePath);
-
                 if (Deserialize_CheckIsImproperRoot())
                     return default;
 
@@ -400,40 +415,58 @@ namespace FileSerializationDemo.Classes
                 // Deserialize non-FileDB-deriving types here:
 
                 string primitivesLocation = FilePath + typeof(T).Name + ".Primitives.json";
-                string primitivesContent = File.ReadAllText(primitivesLocation);
-                logger.Info("Deserialize(): primitivesContent = " + primitivesContent);
-                T returnObject = System.Text.Json.JsonSerializer.Deserialize<T>(primitivesContent);
-                logger.Info("Deserialize-Serialize(): returnObject = " + JsonConvert.SerializeObject(returnObject)); // status-overview after deser. of primitives/strings.
-                ObjectHash oH = ReflectionX.GetExtensivePrimitivesHash(returnObject);
-                PropertyInfo oHprop = returnObject.GetType().GetProperty("ThisObjectHash");
-                oHprop.SetValue(returnObject, oH);
-                logger.Info("Deserialize() Computed ObjectHash = " + oH);
-
-                /*
-                 * Nested :FileDB Properties below.
-                 */
-
-                List<PropertyInfo> properties = this.GetType().GetProperties().ToList();
-                foreach (PropertyInfo property in properties)
+                string objlinqsLocation = GetObjectLinqsLocation();
+                if(File.Exists(objlinqsLocation))
                 {
-                    bool isList = ReflectionX.IsPropertyList(property);
-                    bool isDerivedFileDB = ReflectionX.IsDerivedFileDB(property.PropertyType);
-                    logger.Info("Deserialize(): Property = " + property.Name + " isDerivedFileDB = " + isDerivedFileDB + " isList = " + isList);
-                    try
+                    logger.Info("Deserialize(): Resolving objlinqsLocation.");
+                    string objlinqsContent = File.ReadAllText(objlinqsLocation);
+                    List<ObjectLinq> deser_objlinqs = System.Text.Json.JsonSerializer.Deserialize<List<ObjectLinq>>(objlinqsContent);
+                    return (T)ReflectionX.GetFileDBObject(deser_objlinqs, this.Root);
+                }
+                else if (File.Exists(primitivesLocation))
+                {
+                    string primitivesContent = File.ReadAllText(primitivesLocation);
+                    logger.Info("Deserialize(): primitivesContent = " + primitivesContent);
+                    T returnObject = System.Text.Json.JsonSerializer.Deserialize<T>(primitivesContent);
+                    // logger.Info("Deserialize-Serialize(): returnObject = " + JsonConvert.SerializeObject(returnObject)); // status-overview after deser. of primitives/strings.
+                    ObjectHash oH = ReflectionX.GetExtensivePrimitivesHash(returnObject);
+                    PropertyInfo oHprop = returnObject.GetType().GetProperty("ThisObjectHash");
+                    oHprop.SetValue(returnObject, oH);
+                    logger.Info("Deserialize() Computed ObjectHash = " + oH);
+
+                    if (this.IsRoot)
+                        Root = returnObject;
+                    // Nested :FileDB properties below.
+
+                    List<PropertyInfo> properties = this.GetType().GetProperties().ToList();
+                    foreach (PropertyInfo property in properties)
                     {
-                        if (!isList && isDerivedFileDB)
-                            DeserializeNonListProperty(property, returnObject);
-                        else if (isList)
-                            DeserializeListProperty(property, returnObject);
+                        bool isList = ReflectionX.IsPropertyList(property);
+                        bool isDerivedFileDB = ReflectionX.IsDerivedFileDB(property.PropertyType);
+                        logger.Info("Deserialize(): Property = " + property.Name + " isDerivedFileDB = " + isDerivedFileDB + " isList = " + isList);
+                        try
+                        {
+                            if (!isList && isDerivedFileDB)
+                                DeserializeNonListProperty(property, returnObject);
+                            else if (isList && isDerivedFileDB)
+                                DeserializeListProperty(property, returnObject);
+                        }
+                        catch (Exception e)
+                        {
+                            logger.Info("Deserialize(): Property " + property.Name + " did not contain Deserialize()! " + e.Message);
+                        }
                     }
-                    catch (Exception e)
-                    {
-                        logger.Info("Deserialize(): Property " + property.Name + " did not contain Deserialize()! " + e.Message);
-                    }
+
+                    logger.Info("Deserialize(): Return True.");
+                    return returnObject;
+                }
+                else
+                {
+                    //error.
                 }
 
-                logger.Info("Deserialize(): Return True.");
-                return returnObject;
+                return default;
+                
                 //return (T)Convert.ChangeType(returnObject, typeof(T));
             }
             catch (Exception e)

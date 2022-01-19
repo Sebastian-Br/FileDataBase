@@ -66,43 +66,24 @@ namespace FileSerializationDemoTests
     }
 
     [TestClass]
-    public class JustSerializeTest
+    public class Just
     {
         [TestMethod]
         public void JustSerialize()
         {
             Logger logger = LogManager.GetCurrentClassLogger();
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
-            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED); // usage 1/2
-            Assert.IsTrue(true);
+            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED);
+            Assert.IsTrue(true); // check manually.
         }
 
-        /*
         [TestMethod]
-        public void TestDeserializationThenSerialization()
+        public void JustDeserialize()
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-            RoomDataBase deserRoomDB = new();
-            deserRoomDB = deserRoomDB.Deserialize<RoomDataBase>(1);
-
-            string actualJson = JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented);
-            logger.Info("\n\n TestDeserializationThenSerialization()+++Received:\n" + actualJson);
-
-            deserRoomDB.Serialize();
-
-            Assert.IsTrue(true);
-        }*/
-
-        /// <summary>
-        /// When the object is serialized the first time, it will contain the correct the DBids.
-        /// To check whether the object is the same after deserialization, the Newtonsoft.Json serialization output
-        /// has to be changed such that DBid always appears to be 0.
-        /// </summary>
-        /// <param name="input">The input Json.</param>
-        /// <returns>Output json where all DBid = 0.</returns>
-        public static string NullDBid(string input)
-        {
-            return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");
+            RoomDataBase roomDB = new();
+            roomDB = roomDB.Deserialize<RoomDataBase>(1);
+            Assert.IsTrue(true); // check manually.
         }
     }
 

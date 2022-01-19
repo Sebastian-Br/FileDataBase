@@ -1,4 +1,5 @@
-﻿using NLog;
+﻿using Newtonsoft.Json;
+using NLog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,7 +43,7 @@ namespace FileSerializationDemo.Classes
                     }
                     else
                     {
-                        logger.Info("IsDerivedFileDB() " + t.Name + " is a foreign List<> Type.");
+                        logger.Info("IsDerivedFileDB() List<" + listType.Name + "> is not :FileDB.");
                     }
                 }
                 else // nonlist
@@ -114,10 +115,12 @@ namespace FileSerializationDemo.Classes
                             {
                                 Object collection = property.GetValue(f, null);
                                 IEnumerable<object> iCollection = (IEnumerable<object>)collection;
-
-                                foreach (object objProperty in iCollection)
+                                if(iCollection != null)
                                 {
-                                    oH.AddObject(objProperty);
+                                    foreach (object objProperty in iCollection)
+                                    {
+                                        oH.AddObject(objProperty);
+                                    }
                                 }
                             }
                         }
@@ -130,6 +133,93 @@ namespace FileSerializationDemo.Classes
             }
             
             return oH;
+        }
+
+        public static object GetFileDBObject(List<ObjectLinq> objectLinqs, object Root)
+        {
+            try
+            {
+                object currentRoot = Root;
+                int linqs = objectLinqs.Count;
+                int c = 1;
+                foreach (ObjectLinq objectlinq in objectLinqs)
+                {
+                    PropertyInfo property = currentRoot.GetType().GetProperty(objectlinq.PropertyName);
+                    logger.Info("GetFileDBObject() @currentRoot: " + currentRoot.GetType().Name);
+                    logger.Info("GetFileDBObject() @Property: " + property.Name);
+                    if (c == objectLinqs.Count)
+                    {
+                        logger.Info("GetFileDBObject() This is the final property.");
+                        if (!IsPropertyList(property)) // can ignore DBid.
+                        {
+                            return property.GetValue(currentRoot);
+                        }
+                        else // DBid is the list index (starting from 1).
+                        {
+                            object list = property.GetValue(currentRoot);
+                            IEnumerable<object> iCollection = (IEnumerable<object>)list;
+                            bool bFoundElement = false;
+                            foreach (object listItem in iCollection)
+                            {
+                                if (listItem is FileDataBase @base)
+                                {
+                                    if (@base.DBid == objectlinq.DBid)
+                                    {
+                                        logger.Info("GetFileDBObject() Found object with DBid " + @base.DBid);
+                                        return listItem;
+                                    }
+                                }
+                            }
+
+                            if (!bFoundElement)
+                            {
+                                logger.Error("GetFileDBObject() Did not find element!");
+                                return null;
+                            }
+                        }
+                    }
+
+                    if(!IsPropertyList(property))
+                        currentRoot = property.GetValue(currentRoot);
+                    else
+                    {
+                        object list = property.GetValue(currentRoot);
+                        IEnumerable<object> iCollection = (IEnumerable<object>)list;
+                        if(iCollection == null)
+                            logger.Info("GetFileDBObject() iCollection is null!");
+
+                        logger.Info("GetFileDBObject() iCollection has " + iCollection.Count() + " elements.");
+
+                        bool bFoundElement = false;
+                        foreach (object listItem in iCollection)
+                        {
+                            if (listItem is FileDataBase @base)
+                            {
+                                if (@base.DBid == objectlinq.DBid)
+                                {
+                                    currentRoot = listItem;
+                                    bFoundElement = true;
+                                }
+                            }
+                        }
+
+                        if (!bFoundElement)
+                        {
+                            logger.Error("GetFileDBObject() Did not find element!2");
+                            return null;
+                        }
+                    }
+                    c++;
+                }
+
+                logger.Error("GetFileDBObject() Not enough ObjLinqs!");
+                return null;
+            }
+            catch (Exception e)
+            {
+                logger.Error(e, "GetFileDBObject() Exception.");
+                return null;
+            }
         }
     }
 }

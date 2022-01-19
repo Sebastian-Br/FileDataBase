@@ -11,6 +11,7 @@ using System.IO;
 
 namespace FileSerializationDemo.Classes
 {
+    [ObjectHashIgnore]
     public class ObjectHash
     {
         [Newtonsoft.Json.JsonIgnore]
@@ -128,7 +129,7 @@ namespace FileSerializationDemo.Classes
             return combined;
         }
 
-        [System.AttributeUsage(AttributeTargets.Property)]
+        [System.AttributeUsage(AttributeTargets.All)]
         public class ObjectHashIgnoreAttribute : System.Attribute
         {
         }
