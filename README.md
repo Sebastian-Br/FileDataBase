@@ -13,4 +13,4 @@ The classes which provide this functionality are located in FileSerializationDem
 3. :heavy_check_mark: FIXED - Unchanged objects will be re-written to the filesystem upon Serialization.</br>
   Fix Ideas: Compute a hash and compare hashes before writing to primitives.json. :heavy_check_mark: Small todo: Add [ObjectHashIgnore] attribute. :heavy_check_mark:</br>
 <h3>LOW Priority</h3>
--none-
+5. Update version.
