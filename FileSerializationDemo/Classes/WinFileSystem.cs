@@ -102,10 +102,6 @@ namespace FileSerializationDemo.Classes
                     Directory.Delete(Path, true);
                     logger.Info("TryDeleteDirectory() Deleted " + Path);
                 }
-                else
-                {
-                    logger.Info("TryDeleteDirectory() " + Path + " does not exist.");
-                }
 
                 return true;
             }

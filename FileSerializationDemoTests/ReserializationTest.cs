@@ -36,7 +36,9 @@ namespace FileSerializationDemoTests
             Assert.IsTrue(actualJson == expectedJson);
         }
 
-        /*
+        /// <summary>
+        /// Tests whether change-recognition via the object-hash is working.
+        /// </summary>
         [TestMethod]
         public void TestDeserializationThenSerialization()
         {
@@ -47,10 +49,10 @@ namespace FileSerializationDemoTests
             string actualJson = JsonConvert.SerializeObject(deserRoomDB, Formatting.Indented);
             logger.Info("\n\n TestDeserializationThenSerialization()+++Received:\n" + actualJson);
 
-            deserRoomDB.Serialize();
+            deserRoomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED);
 
             Assert.IsTrue(true);
-        }*/
+        }
 
         /// <summary>
         /// When the object is serialized the first time, it will contain the correct the DBids.
@@ -73,8 +75,7 @@ namespace FileSerializationDemoTests
         {
             Logger logger = LogManager.GetCurrentClassLogger();
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
-            roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED);
-            Assert.IsTrue(true); // check manually.
+            Assert.IsTrue(roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED));
         }
 
         [TestMethod]
@@ -83,7 +84,7 @@ namespace FileSerializationDemoTests
             Logger logger = LogManager.GetCurrentClassLogger();
             RoomDataBase roomDB = new();
             roomDB = roomDB.Deserialize<RoomDataBase>(1);
-            Assert.IsTrue(true); // check manually.
+            Assert.IsTrue(roomDB != default); // check manually.
         }
     }
 

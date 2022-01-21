@@ -43,7 +43,7 @@ namespace FileSerializationDemo.Classes
         [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public List<ObjectLinq> objectLinqs { get; set; }
+        private List<ObjectLinq> objectLinqs { get; set; }
 
         /// <summary>
         /// True if this object has already been serialized somewhere else.
@@ -52,7 +52,7 @@ namespace FileSerializationDemo.Classes
         [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public bool AlreadySerialized { get; set; }
+        private bool AlreadySerialized { get; set; }
 
         /// <summary>
         /// The root from which to talk 
@@ -76,7 +76,7 @@ namespace FileSerializationDemo.Classes
         /// </summary>
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public string FilePath = "<id>\\";
+        private string FilePath = "<id>\\";
 
         /// <summary>
         /// The ObjectHash associated with this object.
@@ -102,9 +102,9 @@ namespace FileSerializationDemo.Classes
         /// Serializes a non-list property that derives from FileDataBase.
         /// </summary>
         /// <param name="property">The property.</param>
-        private void SerializeNonListProperty(PropertyInfo property, SerializationType serializationType)
+        private bool SerializeNonListProperty(PropertyInfo property, SerializationType serializationType)
         {
-            bool bSuccess = true; // return success/failure later.
+            bool success = true;
             object objProperty = property.GetValue(this, null);
             string propertyBaseName = GetPropertyBaseDirectory(property);
             if (objProperty != null)
@@ -113,29 +113,33 @@ namespace FileSerializationDemo.Classes
                 if (objProperty is FileDataBase @base)
                 {
                     @base.FilePath = propertyBaseName + @base.FilePath;
-                    if(!@base.AlreadySerialized)
+                    if (!@base.AlreadySerialized)
                     {
                         @base.objectLinqs = ObjectLinq.CopyLinqs(this.objectLinqs);
                         @base.objectLinqs.Add(new ObjectLinq { PropertyName = property.Name }); // Child needs to set its own dbid.
                     }
-                    @base.Serialize(serializationType);
+                    return @base.Serialize(serializationType);
                 }
             }
             else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
                 logger.Info("SerializeNonListProperty(): Property is null = " + property.Name);
-                WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                return success;
             }
+
+            return false;
         }
 
         /// <summary>
         /// Serializes a nonlist Property that derives from FileDataBase to the file system.
+        /// Handle exception inside parent Serialize().
         /// See: https://stackoverflow.com/questions/937224/propertyinfo-getvalue-how-do-you-index-into-a-generic-parameter-using-reflec
         /// </summary>
         /// <param name="property"></param>
-        private void SerializeListProperty(PropertyInfo property, SerializationType serializationType)
+        private bool SerializeListProperty(PropertyInfo property, SerializationType serializationType)
         {
-            bool bSuccess = true; // return success/failure later.
+            bool success = true; // return success/failure later.
             object collection = property.GetValue(this, null);
             string propertyBaseName = GetPropertyBaseDirectory(property);
             if (collection != null)
@@ -153,7 +157,8 @@ namespace FileSerializationDemo.Classes
                             @base.objectLinqs = ObjectLinq.CopyLinqs(this.objectLinqs);
                             @base.objectLinqs.Add(new ObjectLinq { PropertyName = property.Name }); // Child needs to set its own dbid.
                         }
-                        @base.Serialize(serializationType);
+                        if (!@base.Serialize(serializationType))
+                            return false;
                         AddedDBids.Add(@base.DBid);
                     }
                 }
@@ -173,11 +178,15 @@ namespace FileSerializationDemo.Classes
                                     if (directory.Contains(propertyBaseName))
                                         sdirectory = directory.Replace(propertyBaseName, "");
                                     if (!AddedDBids.Contains(int.Parse(sdirectory)))
-                                        WinFileSystem.TryDeleteDirectory(propertyBaseName + sdirectory + "\\");
+                                    {
+                                        if(!WinFileSystem.TryDeleteDirectory(propertyBaseName + sdirectory + "\\"))
+                                            return false;
+                                    }
                                 }
                                 catch (Exception e)
                                 {
                                     logger.Error(e, "SerializeListProperty() Exception in directory loop.");
+                                    return false;
                                 }
                             }
                         }
@@ -185,15 +194,21 @@ namespace FileSerializationDemo.Classes
                     else  // in case this is a new() List<>.
                     {
                         logger.Info("SerializeListProperty(): List is empty! Trying to delete " + propertyBaseName);
-                        WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                        success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                        return success;
                     }
                 }
+
+                return true;
             }
             else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
                 logger.Info("SerializeListProperty(): List<> Property is null = " + property.Name);
-                WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                return success;
             }
+
+            return false;
         }
 
         /// <summary>
@@ -204,6 +219,7 @@ namespace FileSerializationDemo.Classes
         {
             try
             {
+                bool success = true;
                 logger.Info("Serialize(): Called from " + this.GetType());
                 bool bIsReference = false;
                 if (AlreadySerialized)
@@ -238,6 +254,7 @@ namespace FileSerializationDemo.Classes
                 {
                     try
                     {
+                        logger.Info("This object is a reference type. Saving it to " + ReferenceSerializationPath);
                         File.WriteAllText(ReferenceSerializationPath, JsonConvert.SerializeObject(this.objectLinqs, Formatting.Indented));
                         return true;
                     }
@@ -290,14 +307,18 @@ namespace FileSerializationDemo.Classes
                             bool isList = ReflectionX.IsPropertyList(property);
                             logger.Info("Serialize(): property.isList = " + isList);
                             if (!isList)
-                                SerializeNonListProperty(property, serializationType);
+                                success = success && SerializeNonListProperty(property, serializationType);
                             else
-                                SerializeListProperty(property, serializationType);
+                                success = success && SerializeListProperty(property, serializationType);
+
+                            if (!success)
+                                return false;
                         }
                     }
                     catch (Exception e)
                     {
                         logger.Info("Serialize(): Property " + property.Name + " did not contain Serialize()! " + e.Message);
+                        return false;
                     }
                 }
 
@@ -478,7 +499,7 @@ namespace FileSerializationDemo.Classes
             }
             catch (Exception e)
             {
-                logger.Error("Deserialize(): Return default/Exception : " + e.Message);
+                logger.Error(e, "Deserialize(): Return default/Exception.");
                 return default;
             }
         }
