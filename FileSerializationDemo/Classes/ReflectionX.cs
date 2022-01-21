@@ -110,16 +110,16 @@ namespace FileSerializationDemo.Classes
                         if (!IsDerivedFileDB(property.PropertyType))
                         {
                             if (!IsPropertyList(property))
-                                oH.AddObject(property.GetValue(f, null));
+                                oH.AddObject(property.GetValue(f));
                             else
                             {
-                                Object collection = property.GetValue(f, null);
-                                IEnumerable<object> iCollection = (IEnumerable<object>)collection;
-                                if(iCollection != null)
+                                Object collection = property.GetValue(f);
+                                IEnumerable<object> objects = (IEnumerable<object>)collection;
+                                if(objects != null)
                                 {
-                                    foreach (object objProperty in iCollection)
+                                    foreach (object obj in objects)
                                     {
-                                        oH.AddObject(objProperty);
+                                        oH.AddObject(obj);
                                     }
                                 }
                             }
@@ -157,9 +157,9 @@ namespace FileSerializationDemo.Classes
                         else // DBid is the list index (starting from 1).
                         {
                             object list = property.GetValue(currentRoot);
-                            IEnumerable<object> iCollection = (IEnumerable<object>)list;
+                            IEnumerable<object> collection = (IEnumerable<object>)list;
                             bool bFoundElement = false;
-                            foreach (object listItem in iCollection)
+                            foreach (object listItem in collection)
                             {
                                 if (listItem is FileDataBase @base)
                                 {
@@ -184,14 +184,14 @@ namespace FileSerializationDemo.Classes
                     else
                     {
                         object list = property.GetValue(currentRoot);
-                        IEnumerable<object> iCollection = (IEnumerable<object>)list;
-                        if(iCollection == null)
+                        IEnumerable<object> collection = (IEnumerable<object>)list;
+                        if(collection == null)
                             logger.Info("GetFileDBObject() iCollection is null!");
 
-                        logger.Info("GetFileDBObject() iCollection has " + iCollection.Count() + " elements.");
+                        logger.Info("GetFileDBObject() iCollection has " + collection.Count() + " elements.");
 
                         bool bFoundElement = false;
-                        foreach (object listItem in iCollection)
+                        foreach (object listItem in collection)
                         {
                             if (listItem is FileDataBase @base)
                             {

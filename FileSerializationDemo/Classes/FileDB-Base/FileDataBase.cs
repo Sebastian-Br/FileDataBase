@@ -67,7 +67,7 @@ namespace FileSerializationDemo.Classes
         [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
         [System.Text.Json.Serialization.JsonIgnore]
-        public bool IsRoot { get; set; }
+        private bool IsRoot { get; set; }
 
         /// <summary>
         /// The FilePath where this object will be serialized.

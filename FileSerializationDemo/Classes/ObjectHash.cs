@@ -43,18 +43,17 @@ namespace FileSerializationDemo.Classes
                     logger.Info("AddObject() Object was null!");
                     return;
                 }
-                if (obj is ObjectHash)
+                if (obj is ObjectHash || obj is FileDataBase @base)
                     return;
 
                 Attribute ObjHashIgnoreAttribute = obj.GetType().GetCustomAttribute(typeof(ObjectHashIgnoreAttribute));
-
                 if(ObjHashIgnoreAttribute != null)
                 {
-                    logger.Info("AddObject() This object had the ObjectHashIgnore attribute!");
+                    logger.Info("AddObject() This object had the ObjectHashIgnore attribute!"); // only true if the attribute is set on a class.
                     return;
                 }
 
-                logger.Info("AddObject() Trying to add object of type " + obj.GetType());
+                logger.Info("AddObject() Trying to add object of type " + obj.GetType() + " with value " + obj);
 
                 if (currentHindex == 1)
                     H1 = Sha256.ComputeHash(combine(ObjectToByteArray(obj), H2));
@@ -124,7 +123,7 @@ namespace FileSerializationDemo.Classes
                 return b;
 
             byte[] combined = new byte[a.Length + b.Length];
-            Array.Copy(a, combined, b.Length);
+            Array.Copy(a, combined, a.Length);
             Array.Copy(b, 0, combined, a.Length, b.Length);
             return combined;
         }
