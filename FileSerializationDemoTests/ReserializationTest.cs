@@ -74,7 +74,7 @@ namespace FileSerializationDemoTests
         public void JustSerialize()
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-            RoomDataBase roomDB = RoomDataBase.GetTestDB();
+            RoomDataBase roomDB = RoomDataBase.GetTestDBWithNewList();
             Assert.IsTrue(roomDB.Serialize(FileDBEnums.SerializationType.ADD_DISCARDUNUSED));
         }
 

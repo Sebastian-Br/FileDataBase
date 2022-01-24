@@ -124,5 +124,17 @@ namespace FileSerializationDemoTests
 
             return false;
         }
+
+        public static RoomDataBase GetTestDBWithNewList()
+        {
+            RoomDataBase roomDB = new();
+            roomDB.DataBaseName = "TestDB-NewListTest";
+
+            Room room1 = new();
+            room1.RoomName = "My Room";
+            roomDB.Rooms.Add(room1);
+
+            return roomDB;
+        }
     }
 }

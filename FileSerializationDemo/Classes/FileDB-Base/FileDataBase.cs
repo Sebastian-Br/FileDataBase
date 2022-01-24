@@ -55,7 +55,7 @@ namespace FileSerializationDemo.Classes
         private bool AlreadySerialized { get; set; }
 
         /// <summary>
-        /// The root from which to talk 
+        /// The root from which to walk the object-linqs.
         /// </summary>
         [FileDataBaseIgnore]
         [ObjectHashIgnore]
@@ -63,6 +63,9 @@ namespace FileSerializationDemo.Classes
         [System.Text.Json.Serialization.JsonIgnore]
         public object Root { get; set; }
 
+        /// <summary>
+        /// True: This object is the root object.
+        /// </summary>
         [FileDataBaseIgnore]
         [ObjectHashIgnore]
         [Newtonsoft.Json.JsonIgnore]
@@ -144,9 +147,9 @@ namespace FileSerializationDemo.Classes
             string propertyBaseName = GetPropertyBaseDirectory(property);
             if (collection != null)
             {
-                IEnumerable<object> iCollection = (IEnumerable<object>)collection;
                 List<int> AddedDBids = new();
-                foreach (object objProperty in iCollection)
+                IEnumerable<object> objects = (IEnumerable<object>)collection;
+                foreach (object objProperty in objects)
                 {
                     logger.Info("SerializeListProperty() Got Property = " + property.Name);
                     if (objProperty is FileDataBase @base)
@@ -163,39 +166,56 @@ namespace FileSerializationDemo.Classes
                     }
                 }
 
-                if(serializationType == SerializationType.ADD_DISCARDUNUSED)
+                if (objects.ToList().Count == 0) // = this is a new() List. This will override any previous list in the db, as intended.
                 {
-                    if(iCollection.ToList().Count > 0)
+                    if(Directory.Exists(propertyBaseName))
                     {
                         List<string> directories = Directory.GetDirectories(propertyBaseName, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
                         if (directories != null)
                         {
-                            foreach (string directory in directories)
+                            if (directories.Count > 0) // has subdirectories: delete and recreate.
                             {
-                                try
-                                {
-                                    string sdirectory = directory;
-                                    if (directory.Contains(propertyBaseName))
-                                        sdirectory = directory.Replace(propertyBaseName, "");
-                                    if (!AddedDBids.Contains(int.Parse(sdirectory)))
-                                    {
-                                        if(!WinFileSystem.TryDeleteDirectory(propertyBaseName + sdirectory + "\\"))
-                                            return false;
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    logger.Error(e, "SerializeListProperty() Exception in directory loop.");
-                                    return false;
-                                }
-                            }
+                                success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                                logger.Info("SerializeListProperty() This is a new List! Deleting, then recreating " + propertyBaseName);
+                                success = success && (Directory.CreateDirectory(propertyBaseName) != null);
+                                return success;
+                            } // else/has no subdirs: OK.
+
+                            logger.Info("SerializeListProperty() This is a new List! Empty directory " + propertyBaseName + " already exists. No action required.");
+                            return success;
                         }
                     }
-                    else  // in case this is a new() List<>.
+                    else // create empty dir.
                     {
-                        logger.Info("SerializeListProperty(): List is empty! Trying to delete " + propertyBaseName);
-                        success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
+                        logger.Info("SerializeListProperty() This is a new List! " + propertyBaseName + " did not exist. Creating...");
+                        success = success && (Directory.CreateDirectory(propertyBaseName) != null);
                         return success;
+                    }
+                }
+                else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
+                {
+                    List<string> directories = Directory.GetDirectories(propertyBaseName, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
+                    if (directories != null)
+                    {
+                        foreach (string directory in directories)
+                        {
+                            try
+                            {
+                                string sdirectory = directory;
+                                if (directory.Contains(propertyBaseName))
+                                    sdirectory = directory.Replace(propertyBaseName, "");
+                                if (!AddedDBids.Contains(int.Parse(sdirectory)))
+                                {
+                                    if (!WinFileSystem.TryDeleteDirectory(propertyBaseName + sdirectory + "\\"))
+                                        return false;
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                logger.Error(e, "SerializeListProperty() Exception in directory loop.");
+                                return false;
+                            }
+                        }
                     }
                 }
 
@@ -203,7 +223,7 @@ namespace FileSerializationDemo.Classes
             }
             else if (serializationType == SerializationType.ADD_DISCARDUNUSED)
             {
-                logger.Info("SerializeListProperty(): List<> Property is null = " + property.Name);
+                logger.Info("SerializeListProperty() List<> Property is null = " + property.Name);
                 success = success && WinFileSystem.TryDeleteDirectory(propertyBaseName);
                 return success;
             }
