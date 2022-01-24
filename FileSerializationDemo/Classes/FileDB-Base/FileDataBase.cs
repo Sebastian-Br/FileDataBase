@@ -411,28 +411,35 @@ namespace FileSerializationDemo.Classes
             {
                 
                 List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
-                foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
+                if(directories.Count == 0)
                 {
-                    string sdirectory = directory;
-                    if (directory.Contains(propLocation)) //why the F* is this always true??!?!?!? WHYYYYYYYYYYY
-                        sdirectory = directory.Replace(propLocation, "");
-                    logger.Info("DeserializeListProperty() In Directory " + sdirectory);
-                    var instance = Activator.CreateInstance(listType);
-                    if (instance is FileDataBase @base) // HUIuiuiuiui...
+                    property.SetValue(returnObject, Activator.CreateInstance(property.PropertyType)); // for this property, sets the property value.
+                }
+                else
+                {
+                    foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
                     {
-                        @base.FilePath = propLocation + @base.FilePath;
-                        if (this.Root == null)
-                            @base.Root = this;
-                        else
-                            @base.Root = Root;
-                        MethodInfo deserializeMethodInfo = listType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { listType });
-                        List<object> param = new();
-                        param.Add(int.Parse(sdirectory));
-                        object listElement = deserializeMethodInfo.Invoke(instance, param.ToArray()); // calls Deserialize() on the list element.
-                        object list = property.GetValue(returnObject);
-                        MethodInfo listAdd = property.PropertyType.GetMethod("Add");
-                        listAdd.Invoke(list, new object[] { listElement }); // adds the list element to the list.
-                        logger.Info("DeserializeListProperty() returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
+                        string sdirectory = directory;
+                        if (directory.Contains(propLocation))
+                            sdirectory = directory.Replace(propLocation, "");
+                        logger.Info("DeserializeListProperty() In Directory " + sdirectory);
+                        var instance = Activator.CreateInstance(listType);
+                        if (instance is FileDataBase @base) // HUIuiuiuiui...
+                        {
+                            @base.FilePath = propLocation + @base.FilePath;
+                            if (this.Root == null)
+                                @base.Root = this;
+                            else
+                                @base.Root = Root;
+                            MethodInfo deserializeMethodInfo = listType.GetMethod("Deserialize").MakeGenericMethod(new Type[] { listType });
+                            List<object> param = new();
+                            param.Add(int.Parse(sdirectory));
+                            object listElement = deserializeMethodInfo.Invoke(instance, param.ToArray()); // calls Deserialize() on the list element.
+                            object list = property.GetValue(returnObject);
+                            MethodInfo listAdd = property.PropertyType.GetMethod("Add");
+                            listAdd.Invoke(list, new object[] { listElement }); // adds the list element to the list.
+                            logger.Info("DeserializeListProperty() returnObj-Ser: " + JsonConvert.SerializeObject(returnObject, Formatting.Indented)); // Status overview for recent object and return object.
+                        }
                     }
                 }
             }

@@ -11,7 +11,6 @@ namespace FileSerializationDemoTests
     {
         public Room()
         {
-            Items = new();
         }
 
         public List<Item> Items { get; set; }
