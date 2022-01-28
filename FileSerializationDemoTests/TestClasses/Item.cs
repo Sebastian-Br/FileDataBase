@@ -7,7 +7,7 @@ using FileSerializationDemo.Classes;
 
 namespace FileSerializationDemoTests
 {
-    public class Item : FileDataBase
+    public class Item
     {
         public Item()
         {

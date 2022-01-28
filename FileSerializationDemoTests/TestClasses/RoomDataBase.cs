@@ -10,7 +10,7 @@ namespace FileSerializationDemoTests
     /// <summary>
     /// The Root-Class that holds the a list of the Test-Class "Room".
     /// </summary>
-    public class RoomDataBase : FileDataBase
+    public class RoomDataBase
     {
         public RoomDataBase()
         {
