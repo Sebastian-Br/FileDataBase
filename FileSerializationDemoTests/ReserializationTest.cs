@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using NLog;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace FileSerializationDemoTests
 {
@@ -164,6 +165,30 @@ namespace FileSerializationDemoTests
         public static string NullDBid(string input)
         {
             return Regex.Replace(input, "\\\"DBid\\\":\\s\\d+", "\"DBid\": 0");
+        }
+    }
+
+    [TestClass]
+    public class Unrelated
+    {
+        [TestMethod]
+        public void TestListCopiesNestedReferences()
+        {
+            Room room1 = new();
+            Item item1 = new() { ItemWeight = 5.5, ItemName = "item1" };
+            Item item2 = new() { ItemWeight = 77, ItemName = "item2" };
+            room1.Items = new();
+            room1.Items.Add(item1);
+            room1.Items.Add(item2);
+
+            Room room2 = room1;
+            room2.Items.Add(new() { ItemName = "123" });
+            Assert.IsTrue(room1 == room2 && room2.Items == room1.Items && room1.Items.First() == room2.Items.First());
+            /*EXPLANATION:
+             *          Reference 'room' is the same.
+             *                      References, room.Items are the same.
+             *                                                          Reference to the first item in each room is the same.
+             */
         }
     }
 }

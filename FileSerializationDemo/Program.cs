@@ -12,7 +12,7 @@
 using Newtonsoft.Json;
 using NLog;
 using System;
-
+using System.Collections.Generic;
 
 namespace FileSerializationDemo
 {
@@ -21,7 +21,6 @@ namespace FileSerializationDemo
         static void Main(string[] args)
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-            // Usage: see ReserializationTest.cs in FileSerializationDemoTests
         }
 
     }

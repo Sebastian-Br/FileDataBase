@@ -34,5 +34,19 @@ namespace FileSerializationDemo.Classes
 
             return copiedList;
         }
+
+        public override bool Equals(object obj)
+        {
+            //Check for null and compare run-time types.
+            if ((obj == null) || !this.GetType().Equals(obj.GetType()))
+            {
+                return false;
+            }
+            else
+            {
+                ObjectLinq o = (ObjectLinq)obj;
+                return String.Equals(PropertyName, o.PropertyName) && (DBid == o.DBid);
+            }
+        }
     }
 }

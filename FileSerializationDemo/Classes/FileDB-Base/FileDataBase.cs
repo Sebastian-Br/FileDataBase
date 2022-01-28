@@ -409,22 +409,21 @@ namespace FileSerializationDemo.Classes
 
             if (Directory.Exists(propLocation))
             {
-                
                 List<string> directories = Directory.GetDirectories(propLocation, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
-                if(directories.Count == 0)
+                if(directories.Count == 0) // set the value to new()
                 {
-                    property.SetValue(returnObject, Activator.CreateInstance(property.PropertyType)); // for this property, sets the property value.
+                    property.SetValue(returnObject, Activator.CreateInstance(property.PropertyType));
                 }
                 else
                 {
-                    foreach (string directory in directories) // directory = 1,2,..n (should be (is not (yikes)))
+                    foreach (string directory in directories)
                     {
                         string sdirectory = directory;
                         if (directory.Contains(propLocation))
                             sdirectory = directory.Replace(propLocation, "");
                         logger.Info("DeserializeListProperty() In Directory " + sdirectory);
                         var instance = Activator.CreateInstance(listType);
-                        if (instance is FileDataBase @base) // HUIuiuiuiui...
+                        if (instance is FileDataBase @base)
                         {
                             @base.FilePath = propLocation + @base.FilePath;
                             if (this.Root == null)

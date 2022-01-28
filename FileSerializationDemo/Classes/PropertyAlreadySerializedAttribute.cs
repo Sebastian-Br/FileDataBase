@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace FileSerializationDemo.Classes
 {
     [System.AttributeUsage(AttributeTargets.Property)]
-    public class FileDataBaseIgnoreAttribute : System.Attribute
+    class PropertyAlreadySerializedAttribute : Attribute
     {
     }
 }

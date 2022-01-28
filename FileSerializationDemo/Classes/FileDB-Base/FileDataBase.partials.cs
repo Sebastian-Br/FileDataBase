@@ -165,5 +165,14 @@ namespace FileSerializationDemo.Classes
         {
             return FilePath + this.GetType().Name + ".ObjLinqs.json";
         }
+
+        private void SerializeWithAtomicReference(PropertyInfo property)
+        {
+            if (property.PropertyType.IsAssignableTo(typeof(FileDataBase)))
+                return;
+            if (property.GetCustomAttribute(typeof(PropertyAlreadySerializedAttribute)) == null)
+            {
+            }
+        }
     }
 }
