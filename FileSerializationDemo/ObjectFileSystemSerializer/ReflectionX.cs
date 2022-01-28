@@ -14,59 +14,6 @@ namespace FileSerializationDemo.Classes
         private static Logger logger = LogManager.GetCurrentClassLogger();
 
         /// <summary>
-        /// Determines whether a type is either
-        /// A) Derived from FileDataBase.
-        /// B) A List-Type where the nested type is derived from FileDataBase.
-        /// </summary>
-        /// <param name="t">The type in question.</param>
-        /// <returns>True: The type or nested type is derived from FileDataBase. False otherwise.</returns>
-        public static bool IsDerivedFileDB(Type t)
-        {
-            try
-            {
-                bool bIsList = false;
-                try
-                {
-                    if (t.GetGenericTypeDefinition() == typeof(List<>))
-                        bIsList = true;
-                }
-                catch { }
-
-                if(bIsList)
-                {
-                    Type listType = t.GenericTypeArguments.ToList().First();
-                    if (listType.IsAssignableTo(typeof(FileDataBase)))
-                    {
-                        logger.Info("IsDerivedFileDB() " + t.Name + " is a List<" + listType.Name + ":FileDB>Type.");
-                        return true;
-                    }
-                    else
-                    {
-                        logger.Info("IsDerivedFileDB() List<" + listType.Name + "> is not :FileDB.");
-                    }
-                }
-                else // nonlist
-                {
-                    if (t.IsAssignableTo(typeof(FileDataBase)))
-                    {
-                        logger.Info("IsDerivedFileDB() " + t.Name + " is :FileDB.");
-                        return true;
-                    }
-                    else
-                    {
-                        logger.Info("IsDerivedFileDB() " + t.Name + " is not :FileDB.");
-                    }
-                }
-                return false;
-            }
-            catch(Exception e)
-            {
-                logger.Error(e, "IsDerivedFileDB() exception.");
-                return false;
-            }
-        }
-
-        /// <summary>
         /// Finds out if a property is a List<> type or not.
         /// </summary>
         /// <param name="p">PropertyInfo parameter.</param>
