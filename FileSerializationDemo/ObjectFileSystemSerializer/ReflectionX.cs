@@ -31,8 +31,7 @@ namespace FileSerializationDemo.Classes
         }
 
         /// <summary>
-        /// Determines an arbitrary object's hash.
-        /// Used to check if an object has changed in value.
+        /// EXAMPLE METHOD/DO NOT USE.
         /// </summary>
         /// <param name="f">The object.</param>
         /// <returns>The ObjectHash that is computed from it.</returns>
@@ -52,7 +51,7 @@ namespace FileSerializationDemo.Classes
                 {
                     if(property != null)
                     {
-                        if (!IsDerivedFileDB(property.PropertyType))
+                        if (/*!IsDerivedFileDB(property.PropertyType)*/true || false)
                         {
                             if (!IsPropertyList(property))
                                 oH.AddObject(property.GetValue(f));
@@ -80,14 +79,14 @@ namespace FileSerializationDemo.Classes
             return oH;
         }
 
-        public static object GetFileDBObject(List<ObjectLinq> objectLinqs, object Root)
+        public static object GetFileDBObject(List<PropertyLinq> objectLinqs, object Root)
         {
             try
             {
                 object currentRoot = Root;
                 int linqs = objectLinqs.Count;
                 int c = 1;
-                foreach (ObjectLinq objectlinq in objectLinqs)
+                foreach (PropertyLinq objectlinq in objectLinqs)
                 {
                     PropertyInfo property = currentRoot.GetType().GetProperty(objectlinq.PropertyName);
                     logger.Info("GetFileDBObject() @currentRoot: " + currentRoot.GetType().Name);
@@ -106,7 +105,7 @@ namespace FileSerializationDemo.Classes
                             bool bFoundElement = false;
                             foreach (object listItem in collection)
                             {
-                                if (listItem is FileDataBase @base)
+                                if (listItem is PropertyLinq @base)
                                 {
                                     if (@base.DBid == objectlinq.DBid)
                                     {
@@ -138,7 +137,7 @@ namespace FileSerializationDemo.Classes
                         bool bFoundElement = false;
                         foreach (object listItem in collection)
                         {
-                            if (listItem is FileDataBase @base)
+                            if (listItem is PropertyLinq @base)
                             {
                                 if (@base.DBid == objectlinq.DBid)
                                 {

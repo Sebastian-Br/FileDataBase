@@ -9,6 +9,7 @@
     *Shared object reuse by reference
  */
 
+using FileSerializationDemo.ObjectFileSystemSerializer;
 using Newtonsoft.Json;
 using NLog;
 using System;
@@ -21,6 +22,7 @@ namespace FileSerializationDemo
         static void Main(string[] args)
         {
             Logger logger = LogManager.GetCurrentClassLogger();
+            SerializationMain a = new();
         }
     }
 }

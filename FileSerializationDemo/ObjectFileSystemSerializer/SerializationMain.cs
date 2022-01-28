@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace FileSerializationDemo.ObjectFileSystemSerializer
 {
-    public class SerializationMain
+    public partial class SerializationMain
     {
         Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -23,7 +23,7 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
         /// Used to store and find objects to establish correct references.
         /// Thus only used for reference-types.
         /// </summary>
-        Dictionary<object, List<ObjectLinq>> ObjectDictionary { get; set; }
+        Dictionary<object, List<PropertyLinq>> ObjectDictionary { get; set; }
 
         /// <summary>
         /// This List holds the folder names that, when combined, make up the serialization path of the current object.
@@ -67,5 +67,7 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
             }
             return false;
         }
+
+
     }
 }

@@ -43,7 +43,7 @@ namespace FileSerializationDemo.Classes
                     logger.Info("AddObject() Object was null!");
                     return;
                 }
-                if (obj is ObjectHash || obj is FileDataBase @base)
+                if (obj is ObjectHash)
                     return;
 
                 Attribute ObjHashIgnoreAttribute = obj.GetType().GetCustomAttribute(typeof(ObjectHashIgnoreAttribute));
