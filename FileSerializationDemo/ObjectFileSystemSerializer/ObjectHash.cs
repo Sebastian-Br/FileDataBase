@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 
-namespace FileSerializationDemo.Classes
+namespace FileSerializationDemo
 {
     [ObjectHashIgnore]
     public class ObjectHash

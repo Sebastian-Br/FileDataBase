@@ -1,7 +1,10 @@
-﻿using FileSerializationDemo.Classes;
+﻿using ExtensionMethods;
+using FileSerializationDemo.Classes;
+using Newtonsoft.Json;
 using NLog;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -23,7 +26,7 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
         /// Used to store and find objects to establish correct references.
         /// Thus only used for reference-types.
         /// </summary>
-        Dictionary<object, List<PropertyLinq>> ObjectDictionary { get; set; }
+        Dictionary<object, ObjectInformation> ObjectDictionary { get; set; }
 
         /// <summary>
         /// This List holds the folder names that, when combined, make up the serialization path of the current object.
@@ -38,7 +41,7 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
                 foreach(PropertyInfo property in properties)
                 {
                     object propertyValue = property.GetValue(rootObject);
-                    Serialize(propertyValue);
+                    Serialize(propertyValue, property);
                 }
             }
             catch(Exception e)
@@ -48,13 +51,15 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
             return false;
         }
 
-        private bool Serialize(object obj)
+        private bool Serialize(object obj, PropertyInfo property)
         {
             try
             {
-                if(obj is ValueType) // No need to check for references.
+                CurrentSerializationPath.Add(property.PropertyType.Name);
+                if(obj is ValueType || obj is String) // No need to check for references.
                 {
-
+                    string serializedObject = JsonConvert.SerializeObject(obj, Formatting.Indented);
+                    File.WriteAllText();
                 }
                 else // Have to check for references.
                 {
@@ -63,8 +68,9 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
             }
             catch (Exception e)
             {
-                return false;
             }
+
+            CurrentSerializationPath.Pop();
             return false;
         }
 
