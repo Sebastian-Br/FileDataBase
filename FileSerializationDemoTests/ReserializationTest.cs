@@ -6,9 +6,22 @@ using System.Text.RegularExpressions;
 using NLog;
 using System.Linq;
 using System.Collections.Generic;
+using FileSerializationDemo.ObjectFileSystemSerializer;
 
 namespace FileSerializationDemoTests
 {
+    [TestClass]
+    public class Just
+    {
+        [TestMethod]
+        public void JustSerialize()
+        {
+            RoomDataBase roomDB = RoomDataBase.GetTestDB();
+            SerializationMain serializationMain = new();
+            Assert.IsTrue(serializationMain.SerializeRoot(roomDB));
+        }
+    }
+
     [TestClass]
     public class Unrelated
     {

@@ -46,7 +46,8 @@ namespace FileSerializationDemoTests
             PowerSupply.Generalization = new() { ItemName = "Converter" };
             television.ComposedOf.Add(PowerSupply);
             television.SetWeight();
-            room1.Items.Add(television);
+            room1.Items = new();
+            room1.Items.Add(television); // television is first item. First composed-of, screen, should have "Display" generalization.
 
             Item Shelf = new();
             Shelf.ItemName = "Mysterious Bookshelf";
@@ -80,6 +81,7 @@ namespace FileSerializationDemoTests
 
             Room PrisonCell = new();
             PrisonCell.RoomName = "Comfy Prison Cell";
+            PrisonCell.Items = new();
             PrisonCell.Items.Add(LightBulb);
 
             roomDB.Rooms.Add(PrisonCell);

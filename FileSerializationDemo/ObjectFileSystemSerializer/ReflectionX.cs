@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using NLog;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -23,6 +24,22 @@ namespace FileSerializationDemo.Classes
             try
             {
                 return p.PropertyType.GetGenericTypeDefinition() == typeof(List<>);
+            }
+            catch (Exception e)
+            {
+                return false;
+            }
+        }
+
+        public static bool IsObjectList(object obj)
+        {
+            try
+            {
+                if (obj == null)
+                    return false;
+
+                return obj is IList &&  obj.GetType().IsGenericType &&
+                        obj.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>));
             }
             catch (Exception e)
             {

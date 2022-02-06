@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FileSerializationDemo.Classes
+namespace FileSerializationDemo
 {
     public class WinFileSystem
     {
@@ -27,36 +27,31 @@ namespace FileSerializationDemo.Classes
                 bool isFile = !Path.EndsWith('\\');
                 logger.Info("CreateFolderStructure() called on Path=\"" + Path + "\"");
                 string currentDirectory = "";
+                if (Directory.Exists(Path))
+                {
+                    logger.Info("This path already exists! (True)");
+                    return true;
+                }
 
                 for (int i = 0; i < folderList.Length; i++)
                 {
                     if (string.IsNullOrEmpty(folderList[i]))
                         break;
-                    logger.Info("CreateFolderStructure() STRING s = \"" + folderList[i] + "\"");
+                    //logger.Info("CreateFolderStructure() STRING s = \"" + folderList[i] + "\"");
                     if (i == folderList.Length - 1)
                         if (isFile)
                         {
-                            if (!File.Exists(currentDirectory + folderList[i]))
-                            {
-                                File.Create(currentDirectory + folderList[i]);
-                                logger.Info("CreateFolderStructure() !File.Exists, Creating = \"" + currentDirectory + folderList[i] + "\"");
-                            }
-                            else
-                            {
-                                logger.Info("CreateFolderStructure() File.Exists = \"" + currentDirectory + folderList[i] + "\"");
-                            }
-
                             break;
                         }
 
                     if (!Directory.Exists(currentDirectory + folderList[i] + "\\"))
                     {
-                        logger.Info("CreateFolderStructure() !Directory.Exists, Creating = \"" + currentDirectory + folderList[i] + "\\" + "\"");
+                        //logger.Info("CreateFolderStructure() !Directory.Exists, Creating = \"" + currentDirectory + folderList[i] + "\\" + "\"");
                         Directory.CreateDirectory(currentDirectory + folderList[i] + "\\");
                     }
 
                     currentDirectory = string.Concat(currentDirectory, folderList[i] + "\\");
-                    logger.Info("CreateFolderStructure() Set currentDirectory = \"" + currentDirectory + "\"");
+                    //logger.Info("CreateFolderStructure() Set currentDirectory = \"" + currentDirectory + "\"");
                 }
 
                 return true;

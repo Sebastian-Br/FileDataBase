@@ -22,7 +22,6 @@ namespace FileSerializationDemo
         static void Main(string[] args)
         {
             Logger logger = LogManager.GetCurrentClassLogger();
-            SerializationMain a = new();
         }
     }
 }
