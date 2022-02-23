@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Security.Cryptography;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using FileSerializationDemo.Classes;
 
 namespace FileSerializationDemo
 {
@@ -53,7 +54,7 @@ namespace FileSerializationDemo
                     return;
                 }
 
-                logger.Info("AddObject() Trying to add object of type " + obj.GetType() + " with value " + obj);
+                //logger.Info("AddObject() Trying to add object of type " + obj.GetType() + " with value " + obj);
 
                 if (currentHindex == 1)
                     H1 = Sha256.ComputeHash(combine(ObjectToByteArray(obj), H2));

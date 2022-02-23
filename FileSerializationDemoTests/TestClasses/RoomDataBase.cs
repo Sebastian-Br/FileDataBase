@@ -34,35 +34,16 @@ namespace FileSerializationDemoTests
             Item Screen = new();
             Screen.ItemName = "LCD-Display";
             Screen.ItemWeight = 1.0;
-            Screen.Generalization = new() { ItemName = "Display" };
+            Screen.Generalization = new() { ItemName = "Display", ComposedOf = null};
+            Screen.ComposedOf = null;
             television.ComposedOf.Add(Screen);
             Item Receiver = new();
             Receiver.ItemName = "Television-Receiver";
             Receiver.ItemWeight = 0.875;
             television.ComposedOf.Add(Receiver);
-            Item PowerSupply = new();
-            PowerSupply.ItemName = "Television-PSU";
-            PowerSupply.ItemWeight = 0.25;
-            PowerSupply.Generalization = new() { ItemName = "Converter" };
-            television.ComposedOf.Add(PowerSupply);
             television.SetWeight();
             room1.Items = new();
             room1.Items.Add(television); // television is first item. First composed-of, screen, should have "Display" generalization.
-
-            Item Shelf = new();
-            Shelf.ItemName = "Mysterious Bookshelf";
-            Item Shelf_shelf = new();
-            Shelf_shelf.ItemName = "Wooden Shelf";
-            Shelf_shelf.ItemWeight = 25.0;
-            Shelf_shelf.Generalization = new() { ItemName = "Furniture" };
-            Shelf.ComposedOf.Add(Shelf_shelf);
-            Item Book = new();
-            Book.ItemName = "Thus Spoke Zarathustra";
-            Book.ItemWeight = 0.35;
-            Book.Generalization = new() { ItemName = "Literature" };
-            Shelf.ComposedOf.Add(Book);
-            Shelf.SetWeight();
-            room1.Items.Add(Shelf);
 
             Item LightBulb = new();
             LightBulb.ItemName = "50W Lightbulb";

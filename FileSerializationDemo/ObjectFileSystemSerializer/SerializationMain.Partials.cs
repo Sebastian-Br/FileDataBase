@@ -4,8 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using ExtensionMethods;
+using FileSerializationDemo.Classes;
+using Newtonsoft.Json;
+using NLog;
 
 namespace FileSerializationDemo.ObjectFileSystemSerializer
 {
@@ -14,10 +18,17 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
         public SerializationMain()
         {
             CurrentSerializationPath = new();
-            ObjectDictionary = new();
+            SerializedObjectsDictionary = new();
+            objectHashMgr = new();
+            ObjectLinqsRegexParser = new Regex("((?<propertyName>([A-Z]|[a-z]|_)+)\\\\((?<DBid>\\d+)|))|(?<DBid2>\\d+)");
         }
 
         private string GetCurrentSerializationDirectory()
+        {
+            return SerializationRootDirectory + "\\" + String.Join("\\",  CurrentSerializationPath) + "\\";
+        }
+
+        private string GetCurrentSerializationDirectoryWithoutRoot()
         {
             return String.Join("\\", CurrentSerializationPath) + "\\";
         }
@@ -77,6 +88,111 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
             id++; // we're interested in the NEXT available id.
             logger.Info("GetHighestDBidInPath() Returning = " + id);
             return id;
+        }
+
+        private object WalkRoot(List<PropertyLinq> propertyLinqs)
+        {
+            return ReflectionX.WalkObject(propertyLinqs, Root);
+        }
+
+        private string GetPrimitiveSerializationPath(PropertyInfo property)
+        {
+            return GetCurrentSerializationDirectory() + GetPrimitiveJsonFileName(property);
+        }
+
+        private bool SetVisitedToFalse()
+        {
+            try
+            {
+                Dictionary<object, ObjectInformation>.ValueCollection values = SerializedObjectsDictionary.Values;
+                if(values != null)
+                {
+                    foreach (ObjectInformation objInfo in values)
+                    {
+                        objInfo.VisitedOnCurrentSerialization = false;
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                logger.Log(LogLevel.Error, e);
+                return false;
+            }
+        }
+
+        private bool RemoveUnvisitedEntries()
+        {
+            try
+            {
+                // Step 1: Define parent Linqs.
+                List<List<PropertyLinq>> parentLinqsList = new();
+                foreach (KeyValuePair<object, ObjectInformation> kvp in SerializedObjectsDictionary)
+                {
+                    if (kvp.Value.VisitedOnCurrentSerialization == true)
+                    {
+                        logger.Info("Setting up Linq as parent " + JsonConvert.SerializeObject(kvp.Value.PropertyLinqs));
+                        parentLinqsList.Add(kvp.Value.PropertyLinqs);
+                    }
+                }
+
+                // Step 2: Set child linqs visited to true.
+                foreach (KeyValuePair<object, ObjectInformation> kvp in SerializedObjectsDictionary)
+                {
+                    if (kvp.Value.VisitedOnCurrentSerialization == false)
+                    {
+                        foreach(List<PropertyLinq> parentLinqs in parentLinqsList)
+                        {
+                            logger.Info("Checking if " + JsonConvert.SerializeObject(kvp.Value.PropertyLinqs) + " is a child of " + JsonConvert.SerializeObject(parentLinqs));
+                            int index = 0;
+                            if (parentLinqs.Count > kvp.Value.PropertyLinqs.Count)
+                                break; // can not be child if parentLinqs are larger.
+                            PropertyLinq[] childLinqArray = kvp.Value.PropertyLinqs.ToArray();
+                            foreach(PropertyLinq parentLinq in parentLinqs)
+                            {
+                                if(! (parentLinq.PropertyName == childLinqArray[index].PropertyName && (parentLinq.DBid == childLinqArray[index].DBid || parentLinq.DBid == -1)))
+                                {
+                                    logger.Info("This is not a parent Linq!");
+                                    break; // Lists do not match.
+                                }
+                                index++;
+                            }
+
+                            if(index == parentLinqs.Count) // = contains child
+                            {
+                                logger.Info("Setting up Linq as child: " + JsonConvert.SerializeObject(kvp.Value.PropertyLinqs) + " is a child of " + JsonConvert.SerializeObject(parentLinqs));
+                                kvp.Value.VisitedOnCurrentSerialization = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                foreach (KeyValuePair<object, ObjectInformation> kvp in SerializedObjectsDictionary)
+                {
+                    if(kvp.Value.VisitedOnCurrentSerialization == false)
+                    {
+                        logger.Info("Object " + JsonConvert.SerializeObject(kvp.Value.PropertyLinqs) + " was not visited!");
+                        if (!SerializedObjectsDictionary.Remove(kvp.Key))
+                        {
+                            logger.Error("Failed to remove object!");
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        logger.Info("Object of type " + kvp.Key.GetType().Name + "@" + JsonConvert.SerializeObject(kvp.Value.PropertyLinqs) + " WAS visited!");
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                logger.Log(LogLevel.Error, e);
+                return false;
+            }
         }
     }
 }

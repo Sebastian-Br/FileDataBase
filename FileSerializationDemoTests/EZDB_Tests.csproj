@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\FileSerializationDemo\FileSerializationDemo.csproj" />
+    <ProjectReference Include="..\FileSerializationDemo\EZDB_Core.csproj" />
   </ItemGroup>
 
 </Project>

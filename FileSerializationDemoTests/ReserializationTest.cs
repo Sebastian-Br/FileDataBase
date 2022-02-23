@@ -5,6 +5,7 @@ using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 using NLog;
 using System.Linq;
+using System.Collections;
 using System.Collections.Generic;
 using FileSerializationDemo.ObjectFileSystemSerializer;
 
@@ -19,6 +20,40 @@ namespace FileSerializationDemoTests
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
             SerializationMain serializationMain = new();
             Assert.IsTrue(serializationMain.SerializeRoot(roomDB));
+        }
+
+        [TestMethod]
+        public void JustSerializeX2()
+        {
+            RoomDataBase roomDB = RoomDataBase.GetTestDB();
+            SerializationMain serializationMain = new();
+            Assert.IsTrue(serializationMain.SerializeRoot(roomDB) && serializationMain.SerializeRoot(roomDB));
+        }
+    }
+
+    [TestClass]
+    public class ReferencesTests
+    {
+        [TestMethod]
+        public void SaveLoadAndTest_ListReference_nonempty()
+        {
+            // Set up classes
+            RoomDataBase roomDB = new();
+            roomDB.DataBaseName = "ListReference_nonempty_test";
+            roomDB.Rooms = new();
+            Room room1 = new();
+            room1.RoomName = "Reference_testroom";
+            room1.Items = new();
+            Item item1 = new() { ComposedOf = null, Generalization = null, ItemName = "TestItem", ItemWeight = 1.0 };
+            Room room2 = room1;
+
+            //Serialization
+            SerializationMain s = new();
+            s.SerializeRoot(roomDB);
+
+            //Deserialization: TODO
+
+            Assert.IsTrue(true);
         }
     }
 
@@ -43,6 +78,28 @@ namespace FileSerializationDemoTests
              *                      References, room.Items are the same.
              *                                                          Reference to the first item in each room is the same.
              */
+        }
+
+        [TestMethod]
+        public void TestElementAt()
+        {
+            List<int> intList = new();
+            intList.Add(1);
+            intList.Add(2);
+            intList.Add(3);
+            IEnumerable<int> collection = intList;
+            Assert.IsTrue((int)collection.ElementAt(0) == 1);
+        }
+
+        [TestMethod]
+        public void TestWalkObject()
+        {
+            RoomDataBase roomDB = RoomDataBase.GetTestDB();
+            List<PropertyLinq> propertyLinqs = new();
+            propertyLinqs.Add(new() { PropertyName = "DataBaseName", DBid = 1 });
+            object returnObject = ReflectionX.WalkObject(propertyLinqs, roomDB);
+            
+            Assert.IsTrue(roomDB.DataBaseName == (string)returnObject);
         }
     }
 }
