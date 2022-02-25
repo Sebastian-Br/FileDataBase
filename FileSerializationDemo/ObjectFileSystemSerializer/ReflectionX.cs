@@ -132,8 +132,7 @@ namespace FileSerializationDemo.Classes
                         object nextRoot = collection.ElementAt(propertyLinq.DBid - 1);
                         if (nextRoot == null)
                         {
-                            logger.Error("WalkObject()'nonfinal Did not find element!");
-                            return null;
+                            logger.Warn("WalkObject()'nonfinal Found element was null");
                         }
 
                         currentRoot = nextRoot;

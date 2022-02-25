@@ -40,7 +40,14 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
 
         private string GetObjectLinqJsonFileName(object obj)
         {
-            return obj.GetType().Name + ".ObjLinq.json";
+            if (!ReflectionX.IsObjectList(obj))
+            {
+                return obj.GetType().Name + ".ObjLinq.json";
+            }
+            else
+            {
+                return "List.ObjLinq.json";
+            }
         }
 
         /// <summary>

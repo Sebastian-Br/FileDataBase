@@ -45,7 +45,7 @@ namespace EZDB_Core.ObjectFileSystemSerializer
                 //logger.Info("GetObjectHash() Called on NULL");
                 return true;
             }
-            //logger.Info("GetObjectHash() Called on " + objectToBeHashed.GetType().Name);
+            logger.Info("GetObjectHash() Called on " + objectToBeHashed.GetType().Name);
             if (!Success)
             {
                 logger.Error("GetObjectHash() Success = FALSE.");
@@ -56,14 +56,26 @@ namespace EZDB_Core.ObjectFileSystemSerializer
             {
                 if (ReflectionX.IsObjectList(objectToBeHashed))
                 {
-                    IEnumerable<object> listElements = (IEnumerable<object>)objectToBeHashed;
+                    logger.Info("GetObjectHash() This is a list!");
+                    /*IEnumerable<object> listElements = (IEnumerable<object>)objectToBeHashed;
                     foreach (object listElement in listElements)
                     {
                         if (listElement == null)
                             continue;
                         else
                             GetObjectHash(listElement);
+                    }*/
+
+                    PropertyInfo propInfo_Count = objectToBeHashed.GetType().GetProperty("Count");
+                    PropertyInfo propInfo_Item = objectToBeHashed.GetType().GetProperty("Item");
+                    int count = (int)propInfo_Count.GetValue(objectToBeHashed);
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        GetObjectHash(propInfo_Item.GetValue(objectToBeHashed, new object[] { i }));
                     }
+
+                    return true;
                 }
                 else
                 {
@@ -81,19 +93,31 @@ namespace EZDB_Core.ObjectFileSystemSerializer
                             {
                                 if (property != null)
                                 {
+                                    logger.Info("GetObjectHash() Hashing propertyName: " + property.Name);
                                     if (!ReflectionX.IsPropertyList(property))
                                         GetObjectHash(property.GetValue(objectToBeHashed));
                                     else
                                     {
                                         Object collection = property.GetValue(objectToBeHashed);
-                                        IEnumerable<object> objects = (IEnumerable<object>)collection;
+
+                                        //Type nestedType = collection.GetType().GetGenericArguments()[0];
+                                        PropertyInfo propInfo_Count = collection.GetType().GetProperty("Count");
+                                        PropertyInfo propInfo_Item = collection.GetType().GetProperty("Item");
+                                        int count = (int)propInfo_Count.GetValue(collection);
+
+                                        for(int i = 0; i < count; i++)
+                                        {
+                                            GetObjectHash(propInfo_Item.GetValue(collection, new object[] { i }));
+                                        }
+
+                                        /*IEnumerable<object> objects = (IEnumerable<object>)collection;
                                         if (objects != null)
                                         {
                                             foreach (object obj in objects)
                                             {
                                                 GetObjectHash(obj);
                                             }
-                                        }
+                                        }*/
                                     }
                                 }
                             }

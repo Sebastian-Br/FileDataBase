@@ -48,6 +48,13 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
         Regex ObjectLinqsRegexParser { get; set; }
 
         /// <summary>
+        /// Deserialize() doesn't 'communicate' with other calls of the same method.
+        /// If a call fails, set this to true.
+        /// Must be initialized as false.
+        /// </summary>
+        private bool global_deser_failed { get; set; }
+
+        /// <summary>
         /// Serializes an object into the Object.GetType().Name + Root\\ folder.
         /// </summary>
         /// <param name="rootObject">The object you intend to serialize.</param>
@@ -70,7 +77,7 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
                     return false;
                 }
 
-                List<PropertyInfo> properties = rootObject.GetType().GetProperties().ToList();
+                List<PropertyInfo> properties = rootObject.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static).ToList();
                 CurrentSerializationPath = new();
                 SerializationRootDirectory = rootObject.GetType().Name + "Root";
                 foreach (PropertyInfo property in properties)
@@ -87,6 +94,8 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
                 }
 
                 RemoveUnvisitedEntries();
+
+                logger.Info("SerializeRoot() Done serializing");
                 return bSuccess;
             }
             catch(Exception e)
@@ -96,6 +105,133 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
             location_SerRoot_end:
             logger.Error("SerializeRoot() Returning: false");
             return false;
+        }
+
+        /// <summary>
+        /// Serializes an object into the Object.GetType().Name + Root\\ folder.
+        /// </summary>
+        /// <param name="rootObject">The object you intend to serialize.</param>
+        /// <returns>True: Success. False: Failure.</returns>
+        public object DeserializeRoot(Type t)
+        {
+            try
+            {
+                global_deser_failed = false;
+                object resultObject = Activator.CreateInstance(t);
+                logger.Info("DeserializeRoot called on " + resultObject.GetType());
+                if (!SetVisitedToFalse())
+                {
+                    logger.Error("SerializeRoot() SetVisitedToFalse() false");
+                    return default;
+                }
+
+                List<PropertyInfo> properties = resultObject.GetType().GetProperties().ToList();
+                SerializationRootDirectory = resultObject.GetType().Name + "Root";
+                if (!Directory.Exists(SerializationRootDirectory + "\\"))
+                    return default;
+                CurrentSerializationPath = new();
+                foreach (PropertyInfo property in properties)
+                {
+                    logger.Info("DeserializeRoot() found property " + property.Name);
+
+                    CurrentSerializationPath.Add(property.Name);
+                    object propertyValue = Deserialize(property.PropertyType);
+                    CurrentSerializationPath.Pop();
+                }
+
+                RemoveUnvisitedEntries();
+                return resultObject;
+            }
+            catch (Exception e)
+            {
+                logger.Log(LogLevel.Error, e);
+            }
+
+            logger.Error("SerializeRoot() Returning: default");
+            return default;
+        }
+
+        private object Deserialize(Type t)
+        {
+            try
+            {
+                string original_SerializationDirectory = GetCurrentSerializationDirectory();
+                if (!Directory.Exists(original_SerializationDirectory))
+                {
+                    logger.Warn(original_SerializationDirectory + " does not exist! This object is null");
+                    return null;
+                }
+                object resultObject = Activator.CreateInstance(t);
+                logger.Info("Deserialize() called on " + t.Name);
+
+                if(t.IsValueType || t == typeof(string))
+                {
+                    //GetPrimitiveJsonFileName
+                }
+
+                string propertyLinqsFilePath = original_SerializationDirectory + GetObjectLinqJsonFileName(resultObject);
+                if (File.Exists(propertyLinqsFilePath))
+                {
+                    logger.Info("Deserialize() found objectLinqs");
+                    string propertyLinqsContent = File.ReadAllText(propertyLinqsFilePath);
+                    List<PropertyLinq> tmp_propertyLinqs = JsonConvert.DeserializeObject<List<PropertyLinq>>(propertyLinqsContent);
+                    if(tmp_propertyLinqs == null)
+                    {
+                        global_deser_failed = true;
+                        return null;
+                    }
+
+                    resultObject = ReflectionX.WalkObject(tmp_propertyLinqs, Root);
+                    return resultObject;
+                }
+
+                if(ReflectionX.IsObjectList(resultObject))
+                {
+                    
+
+                    Type[] l_listtypes = t.GenericTypeArguments;
+                    Type listNestedType = l_listtypes[0];
+                    List<string> directories = Directory.GetDirectories(original_SerializationDirectory, "*", new EnumerationOptions() { RecurseSubdirectories = false }).ToList();
+
+                    foreach (string directory_fullpath in directories)
+                    {
+                        // this string should only hold the index (starting at 1) of the list entry
+                        string directory_subpath = directory_fullpath.Replace(original_SerializationDirectory, "");
+                        int dbId = 0;
+                        if(!int.TryParse(directory_subpath, out dbId)) {
+                            global_deser_failed = true;
+                            return null;
+                        }
+                        else
+                        {
+                            MethodInfo listAdd = t.GetMethod("Add");
+                            CurrentSerializationPath.Add(dbId.ToString());
+                            object newListElement = Deserialize(listNestedType);
+                            CurrentSerializationPath.Pop();
+                            listAdd.Invoke(resultObject, new object[] { newListElement }); // adds the list element to the list.
+                        }
+                    }
+
+                    return resultObject;
+                }
+                else
+                {
+                    List<PropertyInfo> properties = resultObject.GetType().GetProperties().ToList();
+                    foreach (PropertyInfo property in properties)
+                    {
+                        logger.Info("DeserializeRoot() found property " + property.Name);
+
+
+                    }
+                }
+
+            }
+            catch (Exception e)
+            {
+                logger.Log(LogLevel.Error, e);
+            }
+            logger.Error("DeserializeRoot() Returning: false");
+            return default;
         }
 
         private bool Serialize(object obj, PropertyInfo property)
@@ -218,12 +354,26 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
                     {
                         logger.Info("Serialize() This is a List!");
                         bSuccess &= WinFileSystem.CreateFolderStructure(GetCurrentSerializationDirectory());
-                        IEnumerable<object> objects = (IEnumerable<object>)obj;
+                        /*IEnumerable<object> objects = (IEnumerable<object>)obj;
                         foreach (object nestedObject in objects)
                         {
                             CurrentSerializationPath.Add(GetNextDBid(GetCurrentSerializationDirectory()).ToString());
                             bSuccess &= WinFileSystem.CreateFolderStructure(GetCurrentSerializationDirectory());
                             bSuccess &= Serialize(nestedObject, null);
+                            CurrentSerializationPath.Pop();
+                            if (!bSuccess)
+                                goto location_end;
+                        }*/
+
+                        PropertyInfo propInfo_Count = obj.GetType().GetProperty("Count");
+                        PropertyInfo propInfo_Item = obj.GetType().GetProperty("Item");
+                        int count = (int)propInfo_Count.GetValue(obj);
+
+                        for (int i = 0; i < count; i++)
+                        {
+                            CurrentSerializationPath.Add(GetNextDBid(GetCurrentSerializationDirectory()).ToString());
+                            bSuccess &= WinFileSystem.CreateFolderStructure(GetCurrentSerializationDirectory());
+                            bSuccess &= Serialize(propInfo_Item.GetValue(obj, new object[] { i }), null);
                             CurrentSerializationPath.Pop();
                             if (!bSuccess)
                                 goto location_end;

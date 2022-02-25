@@ -8,6 +8,7 @@ using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using FileSerializationDemo.ObjectFileSystemSerializer;
+using EZDB_Tests.SimpleTestClasses;
 
 namespace FileSerializationDemoTests
 {
@@ -28,6 +29,14 @@ namespace FileSerializationDemoTests
             RoomDataBase roomDB = RoomDataBase.GetTestDB();
             SerializationMain serializationMain = new();
             Assert.IsTrue(serializationMain.SerializeRoot(roomDB) && serializationMain.SerializeRoot(roomDB));
+        }
+
+        [TestMethod]
+        public void JustSerializeSimpleDB()
+        {
+            SimpleClassDB simpleDB = SimpleClassDB.GetTestDB();
+            SerializationMain serializationMain = new();
+            Assert.IsTrue(serializationMain.SerializeRoot(simpleDB));
         }
     }
 
