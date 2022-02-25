@@ -35,7 +35,14 @@ namespace FileSerializationDemo.ObjectFileSystemSerializer
 
         private string GetPrimitiveJsonFileName(PropertyInfo property)
         {
-            return property.Name + ".Primitive.json";
+            if(property != null)
+            {
+                return property.Name + ".Primitive.json";
+            }
+            else
+            {
+                return "ListElement.Primitive.json";
+            }
         }
 
         private string GetObjectLinqJsonFileName(object obj)
